@@ -11,7 +11,6 @@
     "bin" : {
        "fish-pepper" : "./fish-pepper.js"
     },
-    "private": true,
     "dependencies": {
         "dot": "*",
         "colors": "*",
