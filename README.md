@@ -1,4 +1,4 @@
-# fish-pepper - Spice up your ocean life
+## fish-pepper - Spicing up your ocean life
 
 `fish-pepper` allows you to create many similar Dockerfiles based on
 templates. The problem when authoring Dockerfiles for various
@@ -24,10 +24,10 @@ The generated directories can be used to create the images directly
 with `fish-pepper` or they can be used as automate Dockerhub builds
 when checked in into git.
 
-# How it works
+### How it works
 
 ...
 
-# Configuration
+### Configuration
 
 ...
