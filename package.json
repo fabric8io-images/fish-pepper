@@ -1,22 +1,22 @@
 {
-    "name": "fish-pepper",
-    "description": "Tool for creating a suite of Docker images out of templates",
-    "version": "0.0.1",
-    "author": {
-        "name": "Roland Huss",
-        "email": "npm@ro14nd.de",
-        "url": "https://ro14nd.de"
-    },
-    "license": "Apache-2.0",
-    "bin" : {
-       "fish-pepper" : "./fish-pepper.js"
-    },
-    "dependencies": {
-        "dot": "*",
-        "colors": "*",
-        "underscore": "*",
-        "node-json-minify": "*",
-        "node-getopt" : "*",
-        "dockerode" : "*"
-    }
+  "name": "fish-pepper",
+  "description": "Tool for creating a suite of Docker images out of templates",
+  "version": "0.0.1",
+  "author": {
+    "name": "Roland Huss",
+    "email": "npm@ro14nd.de",
+    "url": "https://ro14nd.de"
+  },
+  "license": "Apache-2.0",
+  "bin": {
+    "fish-pepper": "./fish-pepper.js"
+  },
+  "dependencies": {
+    "dot": "*",
+    "colors": "*",
+    "underscore": "*",
+    "node-getopt": "*",
+    "dockerode": "*",
+    "js-yaml": "*"
+  }
 }

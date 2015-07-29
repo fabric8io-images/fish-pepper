@@ -1,1 +1,6 @@
 node_modules
+.idea
+*.iml
+openjdk-6
+openjdk-7
+openjdk-8

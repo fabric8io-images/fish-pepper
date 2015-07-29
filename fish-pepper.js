@@ -4,52 +4,50 @@ var dot = require('dot');
 dot.templateSettings.strip = false;
 
 var fs = require('fs');
+var path = require('path');
 require('colors');
 var _ = require('underscore');
 var Docker = require('dockerode');
 var tarCmd = "tar";
 var child = require('child_process');
 var stream = require('stream');
+var yaml = require('js-yaml');
 
 // Set to true for extra debugging
 var DEBUG = false;
 
-JSON.minify = JSON.minify || require("node-json-minify");
-
-var globalConfig = getConfig("config.json");
-
-function processServers(servers, opts) {
-// Create build files
-    createAutomatedBuilds(servers, opts);
-
-    // If desired create Docker images
-    if (opts.options.build) {
-        buildImages(servers, opts);
-    }
-}
 (function() {
-    var opts = parseOpts();
+    var ctx = setupContext();
 
     // All supported servers which must be present as a sub-directory
-    var servers = getServers(opts);
-    processServers(servers, opts)
+    var images = getImages(ctx);
+    processImages(ctx, images)
 })();
 
 // ===============================================================================
 
-function createAutomatedBuilds(servers, opts) {
-    console.log("Creating Automated Builds\n".cyan);
+function processImages(ctx, servers) {
+    // Create build files
+    createDockerFileDirs(ctx, servers);
+
+    // If desired create Docker images
+    if (ctx.options.build) {
+        buildImages(ctx, servers);
+    }
+}
+
+function createDockerFileDirs(ctx, images) {
+    console.log("Creating Docker Builds\n".cyan);
 
     var fragments = getFragments("fragments.txt");
-
-    servers.forEach(function (server) {
-        console.log(server.name.magenta);
-        var config = server.config;
-        var versions = extractVersions(config,opts.options.version);
-        execWithTemplates(server.name, function (templates) {
+    images.forEach(function (image) {
+        console.log(image.name.magenta);
+        var config = image.config;
+        var versions = extractVersions(config,ctx.options.version);
+        execWithTemplates(ctx.root + "/" + image.name, function (templates) {
             versions.forEach(function (version) {
                 console.log("    " + version.green);
-                ensureDir(__dirname + "/" + server.name + "/" + version);
+                ensureDir(ctx.root + "/" + image.name + "/" + version);
                 var changed = false;
                 templates.forEach(function (template) {
                     var file = checkForMapping(config, version, template.file);
@@ -60,7 +58,7 @@ function createAutomatedBuilds(servers, opts) {
                     var filledFragments = fillFragments(fragments,config);
                     var templateHasChanged =
                         fillTemplate(
-                                server.name + "/" + version + "/" + file,
+                                ctx.root + "/" + image.name + "/" + version + "/" + file,
                             template.templ,
                             _.extend(
                                 {},
@@ -83,18 +81,10 @@ function createAutomatedBuilds(servers, opts) {
     });
 }
 
-function getConfig(path) {
-    var config = {};
-    if (fs.existsSync(path)) {
-        config = JSON.parse(JSON.minify(fs.readFileSync(path, "utf8")));
-    }
-    return config;
-}
-
-function getServerConfig(name) {
+function getImageConfig(ctx,image) {
     return _.extend({},
-            globalConfig,
-            JSON.parse(JSON.minify(fs.readFileSync(__dirname + "/" + name + "/config.json", "utf8"))));
+            ctx.config,
+            readConfig(ctx.root + "/" + image,"config"));
 }
 
 function getFragments(path) {
@@ -133,15 +123,15 @@ function fillFragments(fragments,config) {
     return ret;
 }
 
-function buildImages(servers,opts) {
+function buildImages(ctx, servers) {
     console.log("\n\nBuilding Images\n".cyan);
 
-    var docker = new Docker(getDockerConnectionsParams(opts));
+    var docker = new Docker(getDockerConnectionsParams(ctx));
 
     servers.forEach(function(server) {
         console.log(server.name.magenta);
-        var versions = extractVersions(server.config,opts.options.version);
-        doBuildImages(docker,server,versions,opts.options.nocache);
+        var versions = extractVersions(server.config,ctx.options.version);
+        doBuildImages(ctx, docker,server,versions,ctx.options.nocache);
     });
 }
 
@@ -203,23 +193,26 @@ function ensureDir(dir) {
     }
 }
 
+function getImages(ctx) {
+    var imageNames;
 
-function getServers(opts) {
-    var serverNames;
-
-    var allServerNames =  _.filter(fs.readdirSync(__dirname), function (f) {
-        return fs.existsSync(f + "/config.json");
+    if (!ctx.root) {
+        return undefined;
+    }
+    var allImageNames =  _.filter(fs.readdirSync(ctx.root), function (f) {
+        var p = ctx.root + "/" + f;
+        return fs.statSync(p).isDirectory() && existsConfig(p,"config");
     });
 
-    if (opts && opts.options && opts.options.server) {
-        serverNames = _.filter(allServerNames, function(server) {
-            return _.contains(opts.options.server,server);
+    if (ctx.options.image) {
+        imageNames = _.filter(allImageNames, function(image) {
+            return _.contains(ctx.options.image,image);
         });
     } else {
-        serverNames = allServerNames;
+        imageNames = allImageNames;
     }
-    return _.map(serverNames, function (name) {
-        return { "name": name, "config": getServerConfig(name)};
+    return _.map(imageNames, function (name) {
+        return { "name": name, "config": getImageConfig(ctx,name)};
     })
 }
 
@@ -238,11 +231,11 @@ function getFullVersion(config,version) {
     return config.config[version].version + (buildVersion ? "-" + buildVersion : "");
 }
 
-function doBuildImages(docker,server,versions,nocache) {
+function doBuildImages(ctx,docker,server,versions,nocache) {
     if (versions.length > 0) {
         var version = versions.shift();
         console.log("    " + version.green);
-        var tar = child.spawn(tarCmd, ['-c', '.'], { cwd: __dirname + "/" + server.name + "/" + version });
+        var tar = child.spawn(tarCmd, ['-c', '.'], { cwd: ctx.root + "/" + server.name + "/" + version });
         var repoUser = server.config.repoUser + "/" || "";
         var name = repoUser + server.name + (version !== "0" ? "-" + version : "");
         var fullName = name + ":" + getFullVersion(server.config,version);
@@ -258,7 +251,7 @@ function doBuildImages(docker,server,versions,nocache) {
                         console.log(result);
                         if (error) { throw error; }
                     });
-                    doBuildImages(docker,server,versions,nocache);
+                    doBuildImages(ctx, docker,server,versions,nocache);
                 });
             });
     }
@@ -283,11 +276,11 @@ function getResponseStream() {
     return buildResponseStream;
 }
 
-function addSslIfNeeded(param,opts) {
+function addSslIfNeeded(param,ctx) {
     var port = param.port;
     if (port === "2376") {
         // Its SSL
-        var options = opts.options;
+        var options = ctx.options;
         var certPath = options.certPath || process.env.DOCKER_CERT_PATH || process.env.HOME + ".docker";
         return _.extend(param,{
             protocol: "https",
@@ -302,19 +295,19 @@ function addSslIfNeeded(param,opts) {
     }
 }
 
-function getDockerConnectionsParams(opts) {
-    if (opts.options.host) {
+function getDockerConnectionsParams(ctx) {
+    if (ctx.options.host) {
         return addSslIfNeeded({
-            "host": opts.options.host,
-            "port": opts.options.port || 2375
-        },opts);
+            "host": ctx.options.host,
+            "port": ctx.options.port || 2375
+        },ctx);
     } else if (process.env.DOCKER_HOST) {
         var parts = process.env.DOCKER_HOST.match(/^tcp:\/\/(.+?)\:?(\d+)?$/i);
         if (parts !== null) {
             return addSslIfNeeded({
                 "host" : parts[1],
                 "port" : parts[2] || 2375
-            },opts);
+            },ctx);
         } else {
             return {
                 "socketPath" : process.env.DOCKER_HOST
@@ -336,10 +329,10 @@ function debug(msg) {
 }
 
 
-function parseOpts() {
+function setupContext() {
     var Getopt = require('node-getopt');
     var getopt = new Getopt([
-        ['s' , 'server=ARG+', 'Servers for which to create container images (e.g. "tomcat")'],
+        ['i' , 'image=ARG+', 'Images to create (e.g. "tomcat")'],
         ['v' , 'version=ARG+', 'Versions of a given server to create (e.g. "7.0" for tomcat)'],
         ['b' , 'build', 'Build image(s)'],
         ['d' , 'host', 'Docker hostname (default: localhost)'],
@@ -348,22 +341,99 @@ function parseOpts() {
         ['h' , 'help', 'display this help']
     ]);
 
+    var opts = getopt.parseSystem();
+
+    var ctx = {};
+    ctx.options = opts.options || {};
+    ctx.root = getRootDir(opts.argv[0]);
+    ctx.config = ctx.root ? getConfig(ctx.root) : {};
+
+    if (ctx.options.help) {
+        getopt.setHelp(createHelp(ctx));
+        getopt.showHelp();
+        return process.exit(0);
+    }
+
+    return ctx;
+}
+
+function getConfig(root) {
+    return readConfig(root,"fish-pepper");
+}
+
+function getRootDir(givenDir) {
+    if (!givenDir) {
+        var fpDir = process.cwd();
+        return findConfig(fpDir,"fish-pepper");
+    } else {
+        if (!existsConfig(givenDir,"fish-pepper")) {
+            throw new Error("Cannot find fish-pepper config" + (givenDir ? " in directory " + givenDir : ""));
+        }
+        return givenDir;
+    }
+}
+
+function existsConfig(dir,file) {
+    return _.some(["json", "yml", "yaml"],function(ext) {
+        return fs.existsSync(dir + "/" + file + "." + ext)
+    });
+}
+
+function readConfig(dir,file) {
+    var base = dir + "/" + file;
+    var ret;
+    if (fs.existsSync(base + ".json")) {
+        ret = JSON.parse(fs.readFileSync(base + ".json", "utf8"));
+    }
+    _.each(["yml", "yaml"],function(ext) {
+        if (fs.existsSync(base + "." + ext)) {
+            ret = yaml.safeLoad(fs.readFileSync(base + "." + ext, "utf8"));
+        }
+    });
+    if (!ret) {
+        throw new Error("No " + file + ".json, " + file + ".yaml or " + file + ".yml found in " + dir);
+    }
+    return ret;
+}
+
+function findConfig(dir,file) {
+    if (dir === "/") {
+        return undefined;
+    } else if (existsConfig(dir,file)) {
+        return dir;
+    } else {
+        return findConfig(path.normalize(dir + "/.."),file);
+    }
+}
+
+function createHelp(ctx) {
     var help =
-        "Usage: fish-pepper [OPTION]\n" +
+        "Usage: fish-pepper [OPTION] \<dir\>\n" +
         "Generator for Dockerfiles from templates\n" +
         "\n" +
         "[[OPTIONS]]\n" +
         "\n" +
-        "This script creates Dockerfiles out of templates\n\n" +
-        "Templates are used for generating multiple, parameterized builds:\n\n" +
-        "Supported builds:\n\n";
-    var servers = getServers();
-    servers.forEach(function (server) {
-        var config = server.config;
-        help += "   " + server.name  + ": " + config.versions.join(", ") + "\n";
-    });
-
-    return getopt.bindHelp(help).parseSystem();
+        "An extra argument is interpreted as directory which contains the top-level\n" +
+        "\"fish-pepper.json\" or \"fish-pepper.yml\" config. If not given the current or the first parent directory\n" +
+        "containing the configuration is used\n" +
+        "\n" +
+        "This script creates Dockerfiles out of templates with a set of given parameters\n" +
+        "\n";
+    var images = getImages(ctx);
+    if (images) {
+        help +=
+            "\n" +
+            "Images:\n\n";
+        images.forEach(function (image) {
+            var config = image.config;
+            help += "   " + image.name + ": " + config.versions.join(", ") + "\n";
+        });
+    } else {
+        help += "\nNo images found\n";
+    }
+    return help;
 }
+
+
 
 
