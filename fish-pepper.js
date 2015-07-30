@@ -46,92 +46,49 @@ function createDockerFileDirs(ctx, images) {
         var config = image.config;
         var params = extractParams(config,ctx.options.param);
         execWithTemplates(ctx.root + "/" + image.name, function (templates) {
-
             var types = params.types.slice(0);
-            fanOutOnParams(ctx, types, {
-                image: image,
-                config : config,
-                templates: templates,
-                fragment: fragments,
-                paramConfig: {},
-                path: [],
-                params: {}
-            });
-
+            fanOutOnParams(ctx, types, new FanOutContext(image,templates,fragments));
         });
     });
 }
 
-function FanOutArgs(img,templs,frags) {
-
-    var image = img;
-    var templates = templs;
-    var fragments = frags;
-
-    var paramConfig = {};
-    var path = [];
-    var params = {};
-
-    this.pushPath = function(el) {
-        path.push(el);
-    };
-
-    this.popPath = function() {
-        path.pop();
-    };
-
-    this.addParamValue = function(type,val) {
-        params[type] = val;
-    }
-
-}
 
 
 function fanOutOnParams(ctx, paramTypes, args) {
     var type = paramTypes.shift();
-    // Config for all param values of type 'type'
-    var paramAllConfig = args.config.config[type] || {};
 
-    _.keys(paramAllConfig).sort().forEach(function(paramVal) {
-            args.params[type] = paramVal;
-            args.paramConfig[type] = _.extend({},paramAllConfig[paramVal]);
+    var paramValues = args.getParamValuesFor(type);
+    paramValues.forEach(function(paramVal) {
+            args.updateParamValue(type,paramVal);
 
-            args.path.push(paramVal);
+            args.pushParamValue(paramVal);
             if (paramTypes.length > 0) {
-                // Use array copy to not confuse the arrays passed
                 fanOutOnParams(ctx, paramTypes.slice(0), args);
             } else {
                 fillTemplates(ctx, args)
             }
-            args.path.pop();
+            args.popParamValue();
         }
     );
 }
 
 function fillTemplates(ctx,args) {
-    console.log("    " + getParamLabel(args.path).green);
-    ensureDir(ctx.root + "/" + args.image.name + "/" + getPath(args.path));
+    console.log("    " + args.getParamLabel().green);
+    ensureDir(args.getDirectoryPath(ctx.root));
     var changed = false;
-    args.templates.forEach(function (template) {
-        var file = checkForMapping(args.config, args.path, template.file);
+    args.forEachTemplate(function (template) {
+        var file = args.checkForMapping(template.file);
         if (!file) {
             // Skip any file flagged as being mapped but no mapping was found
             return;
         }
-        var filledFragments = fillFragments(args.fragments,args.config);
+        var filledFragments = args.fillFragments();
         var templateHasChanged =
             fillTemplate(
-                ctx.root + "/" + args.image.name + "/" + getPath(args.path) + "/" + file,
+                args.getDirectoryPath(ctx.root) + "/" + file,
                 template.templ,
-                _.extend(
-                    {},
-                    args.config,
-                    {
-                        "param": args.params,
-                        "fragments": filledFragments,
-                        "config": _.extend({}, args.config.config['default'], args.paramConfig)
-                    }
-                ));
+                args.getTemplateContext(filledFragments)
+            );
         changed = changed || templateHasChanged;
     });
     if (!changed) {
@@ -172,53 +129,19 @@ function getFragments(path) {
     return fragments;
 }
 
-function getParamLabel(param) {
-    return param.join(", ");
-}
-
-function getPath(param) {
-    return param.join("/");
-}
-
-function fillFragments(fragments,config) {
-    var ret = { };
-    for (var key in fragments) {
-        if (fragments.hasOwnProperty(key)) {
-            var template = dot.template(fragments[key]);
-            ret[key] = template(config);
-        }
-    }
-    return ret;
-}
-
-function buildImages(ctx, servers) {
+function buildImages(ctx, images) {
     console.log("\n\nBuilding Images\n".cyan);
 
     var docker = new Docker(getDockerConnectionsParams(ctx));
 
-    servers.forEach(function(server) {
-        console.log(server.name.magenta);
-        var params = extractParams(server.config,ctx.options.param);
-        doBuildImages(ctx, docker,server,params,ctx.options.nocache);
+    images.forEach(function(image) {
+        console.log(image.name.magenta);
+        var params = extractParams(image.config,ctx.options.param);
+        doBuildImages(ctx, docker, image, params, ctx.options.nocache);
     });
 }
 
 // ===================================================================================
-
-function checkForMapping(config,param,file) {
-    if (/^__.*$/.test(file)) {
-        var mappings = config.config[param].mappings;
-        if (!mappings) {
-            mappings = config.config["default"].mappings;
-        }
-        if (!mappings) {
-            return null;
-        }
-        return mappings[file];
-    } else {
-        return file;
-    }
-}
 
 function execWithTemplates(dir,templFunc) {
     var templ_dir = dir + "/templates";
@@ -233,8 +156,8 @@ function execWithTemplates(dir,templFunc) {
     templFunc(ret);
 }
 
-function fillTemplate(file,template,config) {
-    var newContent = template(config).trim() + "\n";
+function fillTemplate(file,template,context) {
+    var newContent = template(context).trim() + "\n";
     var label = file.replace(/.*\/([^\/]+)$/,"$1");
     if (!newContent.length) {
         console.log("       " + label + ": " + "SKIPPED".grey);
@@ -305,14 +228,14 @@ function getFullVersion(config,param) {
     }
 }
 
-function doBuildImages(ctx,docker,image,params,nocache) {
-    if (params.length > 0) {
-        var param = params.shift();
-        console.log("    " + param.green);
-        var tar = child.spawn(tarCmd, ['-c', '.'], { cwd: ctx.root + "/" + image.name + "/" + param });
+function doBuildImages(ctx, docker, image, buildJobs, nocache) {
+    if (buildJobs.length > 0) {
+        var job = buildJobs.shift();
+        console.log("    " + job.green);
+        var tar = child.spawn(tarCmd, ['-c', '.'], { cwd: ctx.root + "/" + image.name + "/" + job });
         var repoUser = image.config.repoUser ? image.config.repoUser + "/" : "";
-        var name = repoUser + image.name + (param !== "0" ? "-" + param : "");
-        var fullName = name + ":" + getFullVersion(image.config,param);
+        var name = repoUser + image.name + (job !== "0" ? "-" + job : "");
+        var fullName = name + ":" + getFullVersion(image.config,job);
         docker.buildImage(
             tar.stdout, { "t": fullName, "forcerm": true, "q": true, "nocache": nocache ? "true" : "false" },
             function (error, stream) {
@@ -325,7 +248,7 @@ function doBuildImages(ctx,docker,image,params,nocache) {
                         console.log(result);
                         if (error) { throw error; }
                     });
-                    doBuildImages(ctx, docker,image,params,nocache);
+                    doBuildImages(ctx, docker, image, buildJobs, nocache);
                 });
             });
     }
@@ -503,6 +426,89 @@ function createHelp(ctx) {
     return help;
 }
 
+// ===========================================================
+// Context Object when creating all the docker files
+function FanOutContext(image,templates,fragments) {
+
+    var paramConfig = {};
+    var path = [];
+    var params = {};
+
+    this.pushParamValue = function(el) {
+        path.push(el);
+    };
+
+    this.popParamValue = function() {
+        path.pop();
+    };
+
+    this.updateParamValue = function(type,val) {
+        params[type] = val;
+        paramConfig[type] = _.extend({},this.getParamConfigFor(type,val));
+    };
+
+    this.getParamValuesFor = function(type) {
+        var config = image.config.config[type] || {};
+        return _.keys(config).sort();
+    };
+
+    this.getParamConfigFor = function(type,val) {
+        var c = image.config.config[type] || {};
+        return c[val] || {};
+    };
+
+    this.getParamLabel = function() {
+        return path.join(", ");
+    };
+
+    this.getDirectoryPath = function(root) {
+        return root + "/" + image.name + "/" + path.join("/");
+    };
+
+    this.forEachTemplate = function(fn) {
+        templates.forEach(fn);
+    };
+
+    this.fillFragments = function() {
+        var ret = { };
+        for (var key in fragments) {
+            if (fragments.hasOwnProperty(key)) {
+                var template = dot.template(fragments[key]);
+                ret[key] = template(image.config);
+            }
+        }
+        return ret;
+    };
+
+    this.checkForMapping = function(file) {
+        if (/^__.*$/.test(file)) {
+            var mapping = undefined;
+            params.keys().forEach(function(param) {
+                var mappings = this.getParamConfigFor(param)["mappings"];
+                if (!mappings) {
+                    mappings = image.config.config["default"].mappings;
+                }
+                if (mappings) {
+                    mapping = mappings[file];
+                }
+            },this);
+            return mapping;
+        } else {
+            return file;
+        }
+    };
+
+    this.getTemplateContext = function(fragments) {
+        return _.extend(
+            {},
+            image.config,
+            {
+                "param": params,
+                "fragments": fragments,
+                "config": _.extend({}, image.config.config['default'], paramConfig)
+            });
+    }
+}
 
 
 

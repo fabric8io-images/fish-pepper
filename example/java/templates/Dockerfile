@@ -1,4 +1,4 @@
-FROM {{= it.config.java }}
+FROM {{= it.config.version.java }}
 
 MAINTAINER {{= it.maintainer }}
 
