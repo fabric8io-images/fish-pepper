@@ -12,6 +12,7 @@ var tarCmd = "tar";
 var child = require('child_process');
 var stream = require('stream');
 var yaml = require('js-yaml');
+var mkdirp = require('mkdirp');
 
 // Set to true for extra debugging
 var DEBUG = false;
@@ -26,13 +27,13 @@ var DEBUG = false;
 
 // ===============================================================================
 
-function processImages(ctx, servers) {
+function processImages(ctx, images) {
     // Create build files
-    createDockerFileDirs(ctx, servers);
+    createDockerFileDirs(ctx, images);
 
     // If desired create Docker images
     if (ctx.options.build) {
-        buildImages(ctx, servers);
+        buildImages(ctx, images);
     }
 }
 
@@ -43,42 +44,101 @@ function createDockerFileDirs(ctx, images) {
     images.forEach(function (image) {
         console.log(image.name.magenta);
         var config = image.config;
-        var versions = extractVersions(config,ctx.options.version);
+        var params = extractParams(config,ctx.options.param);
         execWithTemplates(ctx.root + "/" + image.name, function (templates) {
-            versions.forEach(function (version) {
-                console.log("    " + version.green);
-                ensureDir(ctx.root + "/" + image.name + "/" + version);
-                var changed = false;
-                templates.forEach(function (template) {
-                    var file = checkForMapping(config, version, template.file);
-                    if (!file) {
-                        // Skip any file flagged as being mapped but no mapping was found
-                        return;
-                    }
-                    var filledFragments = fillFragments(fragments,config);
-                    var templateHasChanged =
-                        fillTemplate(
-                                ctx.root + "/" + image.name + "/" + version + "/" + file,
-                            template.templ,
-                            _.extend(
-                                {},
-                                config,
-                                {
-                                    "version": version,
-                                    "fragments": filledFragments,
-                                    "config": _.extend({}, config.config['default'], config.config[version])
-                                }
-                            ));
-                    changed = changed || templateHasChanged;
-                });
-                if (!changed) {
-                    console.log("       UNCHANGED".yellow);
-                } else {
 
-                }
+            var types = params.types.slice(0);
+            fanOutOnParams(ctx, types, {
+                image: image,
+                config : config,
+                templates: templates,
+                fragment: fragments,
+                paramConfig: {},
+                path: [],
+                params: {}
             });
+
         });
     });
+}
+
+function FanOutArgs(img,templs,frags) {
+
+    var image = img;
+    var templates = templs;
+    var fragments = frags;
+
+    var paramConfig = {};
+    var path = [];
+    var params = {};
+
+    this.pushPath = function(el) {
+        path.push(el);
+    };
+
+    this.popPath = function() {
+        path.pop();
+    };
+
+    this.addParamValue = function(type,val) {
+        params[type] = val;
+    }
+
+}
+
+
+function fanOutOnParams(ctx, paramTypes, args) {
+    var type = paramTypes.shift();
+    // Config for all param values of type 'type'
+    var paramAllConfig = args.config.config[type] || {};
+
+    _.keys(paramAllConfig).sort().forEach(function(paramVal) {
+            args.params[type] = paramVal;
+            args.paramConfig[type] = _.extend({},paramAllConfig[paramVal]);
+
+            args.path.push(paramVal);
+            if (paramTypes.length > 0) {
+                // Use array copy to not confuse the arrays passed
+                fanOutOnParams(ctx, paramTypes.slice(0), args);
+            } else {
+                fillTemplates(ctx, args)
+            }
+            args.path.pop();
+        }
+    );
+}
+
+function fillTemplates(ctx,args) {
+    console.log("    " + getParamLabel(args.path).green);
+    ensureDir(ctx.root + "/" + args.image.name + "/" + getPath(args.path));
+    var changed = false;
+    args.templates.forEach(function (template) {
+        var file = checkForMapping(args.config, args.path, template.file);
+        if (!file) {
+            // Skip any file flagged as being mapped but no mapping was found
+            return;
+        }
+        var filledFragments = fillFragments(args.fragments,args.config);
+        var templateHasChanged =
+            fillTemplate(
+                ctx.root + "/" + args.image.name + "/" + getPath(args.path) + "/" + file,
+                template.templ,
+                _.extend(
+                    {},
+                    args.config,
+                    {
+                        "param": args.params,
+                        "fragments": filledFragments,
+                        "config": _.extend({}, args.config.config['default'], args.paramConfig)
+                    }
+                ));
+        changed = changed || templateHasChanged;
+    });
+    if (!changed) {
+        console.log("       UNCHANGED".yellow);
+    } else {
+
+    }
 }
 
 function getImageConfig(ctx,image) {
@@ -112,6 +172,14 @@ function getFragments(path) {
     return fragments;
 }
 
+function getParamLabel(param) {
+    return param.join(", ");
+}
+
+function getPath(param) {
+    return param.join("/");
+}
+
 function fillFragments(fragments,config) {
     var ret = { };
     for (var key in fragments) {
@@ -130,16 +198,16 @@ function buildImages(ctx, servers) {
 
     servers.forEach(function(server) {
         console.log(server.name.magenta);
-        var versions = extractVersions(server.config,ctx.options.version);
-        doBuildImages(ctx, docker,server,versions,ctx.options.nocache);
+        var params = extractParams(server.config,ctx.options.param);
+        doBuildImages(ctx, docker,server,params,ctx.options.nocache);
     });
 }
 
 // ===================================================================================
 
-function checkForMapping(config,version,file) {
+function checkForMapping(config,param,file) {
     if (/^__.*$/.test(file)) {
-        var mappings = config.config[version].mappings;
+        var mappings = config.config[param].mappings;
         if (!mappings) {
             mappings = config.config["default"].mappings;
         }
@@ -185,10 +253,9 @@ function fillTemplate(file,template,config) {
 
 function ensureDir(dir) {
     if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir,0755);
+        mkdirp.sync(dir,0755);
     }
-    var stat = fs.statSync(dir);
-    if (!stat.isDirectory()) {
+    if (!fs.statSync(dir).isDirectory()) {
         throw new Error(dir + " is not a directory");
     }
 }
@@ -216,29 +283,36 @@ function getImages(ctx) {
     })
 }
 
-function extractVersions(config,versionsFromOpts) {
-    if (versionsFromOpts) {
-        return _.filter(config.versions, function (version) {
-            return _.contains(versionsFromOpts,version);
-        });
+// Return all params in the right order and the individual configuration per param
+function extractParams(config,paramFromOpts) {
+    // TODO: Filter out params if requested from the commandline with paramFromOpts
+    return {
+        // Copy objects
+        types: config.params.slice(0),
+        config: _.extend({},config.config)
+    };
+}
+
+function getFullVersion(config,param) {
+    var buildVersion = config.buildVersion;
+    var imageVersion = config.config[param].version;
+    if (!imageVersion && buildVersion) {
+        return buildVersion;
+    } else if (!imageVersion) {
+        return "latest";
     } else {
-        return config.versions;
+        return imageVersion + (buildVersion ? "-" + buildVersion : "");
     }
 }
 
-function getFullVersion(config,version) {
-    var buildVersion = config.buildVersion;
-    return config.config[version].version + (buildVersion ? "-" + buildVersion : "");
-}
-
-function doBuildImages(ctx,docker,server,versions,nocache) {
-    if (versions.length > 0) {
-        var version = versions.shift();
-        console.log("    " + version.green);
-        var tar = child.spawn(tarCmd, ['-c', '.'], { cwd: ctx.root + "/" + server.name + "/" + version });
-        var repoUser = server.config.repoUser + "/" || "";
-        var name = repoUser + server.name + (version !== "0" ? "-" + version : "");
-        var fullName = name + ":" + getFullVersion(server.config,version);
+function doBuildImages(ctx,docker,image,params,nocache) {
+    if (params.length > 0) {
+        var param = params.shift();
+        console.log("    " + param.green);
+        var tar = child.spawn(tarCmd, ['-c', '.'], { cwd: ctx.root + "/" + image.name + "/" + param });
+        var repoUser = image.config.repoUser ? image.config.repoUser + "/" : "";
+        var name = repoUser + image.name + (param !== "0" ? "-" + param : "");
+        var fullName = name + ":" + getFullVersion(image.config,param);
         docker.buildImage(
             tar.stdout, { "t": fullName, "forcerm": true, "q": true, "nocache": nocache ? "true" : "false" },
             function (error, stream) {
@@ -251,7 +325,7 @@ function doBuildImages(ctx,docker,server,versions,nocache) {
                         console.log(result);
                         if (error) { throw error; }
                     });
-                    doBuildImages(ctx, docker,server,versions,nocache);
+                    doBuildImages(ctx, docker,image,params,nocache);
                 });
             });
     }
@@ -333,7 +407,7 @@ function setupContext() {
     var Getopt = require('node-getopt');
     var getopt = new Getopt([
         ['i' , 'image=ARG+', 'Images to create (e.g. "tomcat")'],
-        ['v' , 'version=ARG+', 'Versions of a given server to create (e.g. "7.0" for tomcat)'],
+        ['p' , 'param=ARG+', 'Params to use for the build. Should be a comma separate list, starting from top'],
         ['b' , 'build', 'Build image(s)'],
         ['d' , 'host', 'Docker hostname (default: localhost)'],
         ['p' , 'port', 'Docker port (default: 2375)'],
@@ -346,8 +420,7 @@ function setupContext() {
     var ctx = {};
     ctx.options = opts.options || {};
     ctx.root = getRootDir(opts.argv[0]);
-    ctx.config = ctx.root ? getConfig(ctx.root) : {};
-
+    ctx.config = ctx.root ? readConfig(ctx.root, "fish-pepper") : {};
     if (ctx.options.help) {
         getopt.setHelp(createHelp(ctx));
         getopt.showHelp();
@@ -355,10 +428,6 @@ function setupContext() {
     }
 
     return ctx;
-}
-
-function getConfig(root) {
-    return readConfig(root,"fish-pepper");
 }
 
 function getRootDir(givenDir) {

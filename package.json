@@ -17,6 +17,7 @@
     "underscore": "*",
     "node-getopt": "*",
     "dockerode": "*",
-    "js-yaml": "*"
+    "js-yaml": "*",
+    "mkdirp": "*"
   }
 }
