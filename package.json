@@ -1,7 +1,7 @@
 {
   "name": "fish-pepper",
   "description": "Tool for creating a suite of Docker images out of templates",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": {
     "name": "Roland Huss",
     "email": "npm@ro14nd.de",
@@ -11,6 +11,10 @@
   "bin": {
     "fish-pepper": "./fish-pepper.js"
   },
+  "files": [
+    "fp-create-context.js",
+    "fp-image-job.js"
+  ],
   "dependencies": {
     "dot": "*",
     "colors": "*",

@@ -14,6 +14,9 @@ var stream = require('stream');
 var yaml = require('js-yaml');
 var mkdirp = require('mkdirp');
 
+var CreateContext = require('./fp-create-context.js');
+var ImageJob = require('./fp-image-job.js');
+
 // Set to true for extra debugging
 var DEBUG = false;
 
@@ -42,49 +45,46 @@ function createDockerFileDirs(ctx, images) {
 
   images.forEach(function (image) {
     console.log(image.dir.magenta);
-    var blocks = getBlocks(ctx.root + "/blocks",ctx.root + "/" + image.dir + "/blocks");
+    var blocks = getBlocks(ctx.root + "/blocks", ctx.root + "/" + image.dir + "/blocks");
     var config = image.config;
     var params = extractParams(config, ctx.options.param);
     execWithTemplates(ctx.root + "/" + image.dir, function (templates) {
-      var types = params.types.slice(0);
-      fanOutOnParams(ctx, types, new FanOutContext(image, templates, blocks));
+      fanOutOnParams(ctx, params.types.slice(0), new CreateContext(image, templates, blocks));
     });
   });
 }
 
 
-function fanOutOnParams(ctx, paramTypes, args) {
+function fanOutOnParams(ctx, paramTypes, createContext) {
   var type = paramTypes.shift();
 
-  var paramValues = args.getParamValuesFor(type);
+  var paramValues = createContext.getParamValuesFor(type);
   paramValues.forEach(function (paramVal) {
-      args.updateParamValue(type, paramVal);
+      createContext.updateParamValue(type, paramVal);
 
-      args.pushParamValue(paramVal);
+      createContext.pushParamValue(paramVal);
       if (paramTypes.length > 0) {
-        fanOutOnParams(ctx, paramTypes.slice(0), args);
+        fanOutOnParams(ctx, paramTypes.slice(0), createContext);
       } else {
-        fillTemplates(ctx, args)
+        fillTemplates(ctx, createContext)
       }
-      args.popParamValue();
+      createContext.popParamValue();
     }
   );
 }
 
-function fillTemplates(ctx, args) {
-  console.log("    " + args.getParamLabel().green);
-  ensureDir(args.getDirectoryPath(ctx.root));
+function fillTemplates(ctx, createContext) {
+  console.log("    " + createContext.getParamLabel().green);
+  ensureDir(createContext.getDirectoryPath(ctx.root));
   var changed = false;
-  args.forEachTemplate(function (template) {
-    var file = args.checkForMapping(template.file);
+  createContext.forEachTemplate(function (template) {
+    var file = createContext.checkForMapping(template.file);
     if (!file) {
       // Skip any file flagged as being mapped but no mapping was found
       return;
     }
     var templateStatus =
-      args.fillTemplate(
-        args.getDirectoryPath(ctx.root) + "/" + file,
-        template.templ);
+      createContext.fillTemplate(createContext.getDirectoryPath(ctx.root) + "/" + file, template.templ);
     if (templateStatus) {
       var label = file.replace(/.*\/([^\/]+)$/, "$1");
       console.log("       " + label + ": " + templateStatus);
@@ -273,63 +273,6 @@ function doBuildImages(ctx, docker, buildJobs, nocache) {
   }
 }
 
-function ImageJob(image, types, paramValues) {
-
-  this.getPath = function (root) {
-    return root + "/" + image.dir + "/" + paramValues.join("/");
-  };
-
-  this.getLabel = function () {
-    return paramValues.join(", ");
-  };
-
-  function getVersion() {
-    var versionsFromType = [];
-    forEachParamValueConfig(function (config) {
-      if (config && config.version) {
-        versionsFromType.push(config.version);
-      }
-    });
-
-    var buildVersion = image.config.buildVersion;
-    if (buildVersion) {
-      versionsFromType.push(buildVersion);
-    }
-    if (versionsFromType.length > 0) {
-      return versionsFromType.join("-");
-    } else {
-      return "latest";
-    }
-  }
-
-  function forEachParamValueConfig(callback) {
-    for (var i = 0; i < types.length; i++) {
-      var c = image.config.config[types[i]][paramValues[i]];
-      callback(c);
-    }
-  }
-
-  this.getImageName = function () {
-    var registry = image.config.registry ? image.config.registry + "/" : "";
-    return registry + image.name + "-" + paramValues.join("-");
-  };
-
-  this.getImageNameWithVersion = function () {
-    return this.getImageName() + ":" + getVersion();
-  };
-
-  this.getTags = function () {
-    var ret = [];
-    forEachParamValueConfig(function (config) {
-      if (config && config.tags) {
-        Array.prototype.push.apply(ret, config.tags);
-      }
-    });
-    return ret;
-  }
-
-}
-
 function getResponseStream() {
   var buildResponseStream = new stream.Writable();
   buildResponseStream._write = function (chunk, encoding, done) {
@@ -501,107 +444,3 @@ function createHelp(ctx) {
   }
   return help;
 }
-
-// ===========================================================
-// Context Object when creating all the docker files
-function FanOutContext(image, templates, blocks) {
-
-  var paramConfig = {};
-  var path = [];
-  var params = {};
-
-  this.pushParamValue = function (el) {
-    path.push(el);
-  };
-
-  this.popParamValue = function () {
-    path.pop();
-  };
-
-  this.updateParamValue = function (type, val) {
-    params[type] = val;
-    paramConfig[type] = _.extend({}, this.getParamConfigFor(type, val));
-  };
-
-  this.getParamValuesFor = function (type) {
-    var config = image.config.config[type] || {};
-    return _.keys(config).sort();
-  };
-
-  this.getParamConfigFor = function (type, val) {
-    var c = image.config.config[type] || {};
-    return c[val] || {};
-  };
-
-  this.getParamLabel = function () {
-    return path.join(", ");
-  };
-
-  this.getDirectoryPath = function (root) {
-    return root + "/" + image.dir + "/" + path.join("/");
-  };
-
-  this.forEachTemplate = function (fn) {
-    templates.forEach(fn);
-  };
-
-  function fillBlocks() {
-    var ret = {};
-    for (var key in blocks) {
-      if (blocks.hasOwnProperty(key)) {
-        var template = dot.template(blocks[key]);
-        ret[key] = template(getTemplateContext());
-      }
-    }
-    return ret;
-  };
-
-  this.fillTemplate = function(file, template) {
-    var context = getTemplateContext(fillBlocks());
-    var newContent = template(context).trim() + "\n";
-    if (!newContent.length) {
-      return "SKIPPED".grey;
-    } else {
-      var exists = fs.existsSync(file);
-      var oldContent = exists ? fs.readFileSync(file, "utf8") : undefined;
-      if (!oldContent || newContent.trim() !== oldContent.trim()) {
-        fs.writeFileSync(file, newContent, {"encoding": "utf8"});
-        return exists ? "CHANGED".green : "NEW".yellow;
-      }
-    }
-    return undefined;
-  };
-
-  this.checkForMapping = function (file) {
-    if (/^__.*$/.test(file)) {
-      var mapping = undefined;
-      params.keys().forEach(function (param) {
-        var mappings = this.getParamConfigFor(param)["mappings"];
-        if (!mappings) {
-          mappings = image.config.config["default"].mappings;
-        }
-        if (mappings) {
-          mapping = mappings[file];
-        }
-      }, this);
-      return mapping;
-    } else {
-      return file;
-    }
-  };
-
-  function getTemplateContext(blocks) {
-    return _.extend(
-      {},
-      image.config,
-      blocks ? { "blocks": blocks } : {},
-      {
-        "param":  params,
-        "blocks": blocks,
-        "config": _.extend({}, image.config.config['default'], paramConfig)
-      });
-  }
-}
-
-
-
