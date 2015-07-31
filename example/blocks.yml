@@ -1,0 +1,6 @@
+---
+readme-footer: |
+  * Java Version: **{{= it.config.version.fullVersion}}** (base image: *{{= it.config.version.java}}*)
+  * Jolokia Version: **{{= it.jolokiaVersion}}**
+  * Jolokia Port: **8778** 
+

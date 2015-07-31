@@ -39,6 +39,4 @@ So, if you start the container with `docker run -e JOLOKIA_OFF ...` no agent wil
 
 The following versions are used:
 
-* Java Version: **{{= it.config.fullVersion}}** (base image: *{{= it.config.java}}*)
-* Jolokia Version: **{{= it.jolokiaVersion}}** 
-* Jolokia Port: **8778**
+{{= it.blocks['readme-footer'] }}
