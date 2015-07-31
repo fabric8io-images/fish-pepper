@@ -12,6 +12,7 @@
     "fish-pepper": "./fish-pepper.js"
   },
   "files": [
+    "fish-pepper.js",
     "fp-create-context.js",
     "fp-image-job.js"
   ],
