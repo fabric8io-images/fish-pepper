@@ -14,8 +14,10 @@ var stream = require('stream');
 var yaml = require('js-yaml');
 var mkdirp = require('mkdirp');
 
-var CreateContext = require('./fp-create-context.js');
-var ImageJob = require('./fp-image-job.js');
+// Own modules:
+var createContext = require('./fp/create-context.js');
+var imageJobCreator = require('./fp/image-job-creator.js');
+var blockLoader = require('./fp/blocks.js');
 
 // Set to true for extra debugging
 var DEBUG = false;
@@ -25,6 +27,10 @@ var DEBUG = false;
 
   // All supported servers which must be present as a sub-directory
   var images = getImages(ctx);
+  if (!images) {
+    console.log("No images found.".yellow);
+    process.exit(0);
+  }
   processImages(ctx, images)
 })();
 
@@ -40,148 +46,21 @@ function processImages(ctx, images) {
   }
 }
 
+// ===============================================================================
+
 function createDockerFileDirs(ctx, images) {
   console.log("Creating Docker Builds\n".cyan);
 
   images.forEach(function (image) {
     console.log(image.dir.magenta);
-    var blocks = getBlocks(ctx.root + "/blocks", ctx.root + "/" + image.dir + "/blocks");
+    var blocks = blockLoader.load(ctx.root + "/blocks", ctx.root + "/" + image.dir + "/blocks");
     var config = image.config;
     var params = extractParams(config, ctx.options.param);
     execWithTemplates(ctx.root + "/" + image.dir, function (templates) {
-      fanOutOnParams(ctx, params.types.slice(0), new CreateContext(image, templates, blocks));
+      fanOutOnParams(params.types.slice(0), createContext.create(ctx.root, image, templates, blocks));
     });
   });
 }
-
-
-function fanOutOnParams(ctx, paramTypes, createContext) {
-  var type = paramTypes.shift();
-
-  var paramValues = createContext.getParamValuesFor(type);
-  paramValues.forEach(function (paramVal) {
-      createContext.updateParamValue(type, paramVal);
-
-      createContext.pushParamValue(paramVal);
-      if (paramTypes.length > 0) {
-        fanOutOnParams(ctx, paramTypes.slice(0), createContext);
-      } else {
-        fillTemplates(ctx, createContext)
-      }
-      createContext.popParamValue();
-    }
-  );
-}
-
-function fillTemplates(ctx, createContext) {
-  console.log("    " + createContext.getParamLabel().green);
-  ensureDir(createContext.getDirectoryPath(ctx.root));
-  var changed = false;
-  createContext.forEachTemplate(function (template) {
-    var file = createContext.checkForMapping(template.file);
-    if (!file) {
-      // Skip any file flagged as being mapped but no mapping was found
-      return;
-    }
-    var templateStatus =
-      createContext.fillTemplate(createContext.getDirectoryPath(ctx.root) + "/" + file, template.templ);
-    if (templateStatus) {
-      var label = file.replace(/.*\/([^\/]+)$/, "$1");
-      console.log("       " + label + ": " + templateStatus);
-    }
-    changed = changed || templateStatus;
-  });
-  if (!changed) {
-    console.log("       UNCHANGED".yellow);
-  } else {
-
-  }
-}
-
-function getImageConfig(ctx, image) {
-  return _.extend({},
-    ctx.config,
-    readConfig(ctx.root + "/" + image, "config"));
-}
-
-function getBlocks() {
-  var blocks = {};
-  Array.prototype.slice.call(arguments).forEach(function(path) {
-    [".txt",".yml",".yaml"].forEach(function(ext) {
-      if (fs.existsSync(path + ext)) {
-        if (ext === ".txt") {
-          blocks = _.extend(blocks, readBlockAsText(path + ext));
-        } else if (ext === ".yml" || ext === ".yaml") {
-          blocks = _.extend(blocks, readBlockAsYaml(path + ext));
-        }
-      }
-    });
-  });
-  return blocks;
-}
-
-function readBlockAsText(path) {
-  var blocks = {};
-  var text = fs.readFileSync(path, "utf8");
-  var lines = text.split(/\r?\n/);
-  var block = undefined;
-  var buffer = "";
-  lines.forEach(function (line) {
-    var name = line.match(/^===*\s*([^\s]+)?/);
-    if (name) {
-      if (!name[1]) { // end-of-fragment
-        blocks[block] = buffer;
-        buffer = "";
-      }
-      block = name[1];
-    } else {
-      if (block) {
-        buffer += line + "\n";
-      }
-    }
-  });
-  return blocks;
-}
-
-function readBlockAsYaml(path) {
-  return yaml.safeLoad(fs.readFileSync(path, "utf8"))
-}
-
-function createBuildJobs(image, params) {
-  var jobs = [];
-
-  var collect = function (types, values) {
-    if (types.length === 0) {
-      jobs.push(new ImageJob(image, params.types, values));
-    } else {
-      var type = types.shift();
-      var paramValues = Object.keys(params.config[type]).sort();
-      paramValues.forEach(function (paramValue) {
-        var valuesClone = values.slice(0);
-        valuesClone.push(paramValue);
-        collect(types.slice(0), valuesClone);
-      });
-    }
-  };
-
-  collect(params.types.slice(0), []);
-  return jobs;
-}
-
-
-function buildImages(ctx, images) {
-  console.log("\n\nBuilding Images\n".cyan);
-
-  var docker = new Docker(getDockerConnectionsParams(ctx));
-
-  images.forEach(function (image) {
-    console.log(image.dir.magenta);
-    var params = extractParams(image.config, ctx.options.param);
-    doBuildImages(ctx, docker, createBuildJobs(image, params), ctx.options.nocache);
-  });
-}
-
-// ===================================================================================
 
 function execWithTemplates(dir, templFunc) {
   var templ_dir = dir + "/templates";
@@ -195,6 +74,117 @@ function execWithTemplates(dir, templFunc) {
   });
   templFunc(ret);
 }
+
+function fanOutOnParams(paramTypes, createContext) {
+  var type = paramTypes.shift();
+
+  var paramValues = createContext.getParamValuesFor(type);
+  paramValues.forEach(function (paramVal) {
+      createContext.updateParamValue(type, paramVal);
+
+      createContext.pushParamValue(paramVal);
+      if (paramTypes.length > 0) {
+        fanOutOnParams(paramTypes.slice(0), createContext);
+      } else {
+        fillTemplates(createContext)
+      }
+      createContext.popParamValue();
+    }
+  );
+}
+
+function fillTemplates(createContext) {
+  console.log("    " + createContext.getParamLabel().green);
+  ensureDir(createContext.getPath());
+  var changed = false;
+  createContext.forEachTemplate(function (template) {
+    var file = createContext.checkForMapping(template.file);
+    if (!file) {
+      // Skip any file flagged as being mapped but no mapping was found
+      return;
+    }
+    var templateStatus =
+      createContext.fillTemplate(createContext.getPath(file), template.templ);
+    if (templateStatus) {
+      var label = file.replace(/.*\/([^\/]+)$/, "$1");
+      console.log("       " + label + ": " + templateStatus);
+    }
+    changed = changed || templateStatus;
+  });
+  if (!changed) {
+    console.log("       UNCHANGED".yellow);
+  } else {
+
+  }
+}
+
+
+// =======================================================================================
+
+function buildImages(ctx, images) {
+  console.log("\n\nBuilding Images\n".cyan);
+
+  var docker = new Docker(getDockerConnectionsParams(ctx));
+
+  images.forEach(function (image) {
+    console.log(image.dir.magenta);
+    var params = extractParams(image.config, ctx.options.param);
+    doBuildImages(ctx, docker, imageJobCreator.createJobs(image, params), ctx.options.nocache);
+  });
+}
+
+function doBuildImages(ctx, docker, buildJobs, nocache) {
+  if (buildJobs && buildJobs.length > 0) {
+    var job = buildJobs.shift();
+    console.log("    " + job.getLabel().green + " --> " + job.getImageNameWithVersion().cyan);
+    var tar = child.spawn(tarCmd, ['-c', '.'], {cwd: job.getPath(ctx.root)});
+    var fullName = job.getImageNameWithVersion();
+    docker.buildImage(
+      tar.stdout, {"t": fullName, "forcerm": true, "q": true, "nocache": nocache ? "true" : "false"},
+      function (error, stream) {
+        if (error) {
+          throw error;
+        }
+        stream.pipe(getResponseStream());
+        stream.on('end', function () {
+          job.getTags().forEach(function (tag) {
+            docker.getImage(fullName).tag(
+              {repo: job.getImageName(), tag: tag, force: 1},
+              function (error, result) {
+                console.log(result.gray);
+                if (error) {
+                  throw error;
+                }
+              });
+          });
+          console.log();
+          // Chain it so that it runs sequentially
+          doBuildImages(ctx, docker, buildJobs, nocache);
+        });
+      });
+  }
+}
+
+function getResponseStream() {
+  var buildResponseStream = new stream.Writable();
+  buildResponseStream._write = function (chunk, encoding, done) {
+    var answer = chunk.toString();
+    var resp = JSON.parse(answer);
+
+    debug("|| >>> " + answer);
+    if (resp.stream) {
+      process.stdout.write("    " + resp.stream.gray);
+    }
+    if (resp.errorDetail) {
+      process.stderr.write("++++++++ ERROR +++++++++++\n".red);
+      process.stderr.write(resp.errorDetail.message.red);
+    }
+    done();
+  };
+  return buildResponseStream;
+}
+
+// ===================================================================================
 
 
 function ensureDir(dir) {
@@ -226,12 +216,18 @@ function getImages(ctx) {
   }
   return _.map(imageNames, function (name) {
     var config = getImageConfig(ctx, name);
-    var repoUser = ctx.config.repoUser ? ctx.config.repoUser = "/" : "";
+    var repoUser = ctx.config['fp.repoUser'] ? ctx.config['fp.repoUser'] + "/" : "";
     return {
       "dir": name,
-      "name": config.name ? config.name : repoUser + name,
+      "name": config['fp.name'] ? config['fp.name'] : repoUser + name,
       "config": getImageConfig(ctx, name)};
   })
+}
+
+function getImageConfig(ctx, image) {
+  return _.extend({},
+    ctx.config,
+    readConfig(ctx.root + "/" + image, "config"));
 }
 
 // Return all params in the right order and the individual configuration per param
@@ -239,58 +235,11 @@ function extractParams(config, paramFromOpts) {
   // TODO: Filter out params if requested from the commandline with paramFromOpts
   return {
     // Copy objects
-    types:  config.params.slice(0),
+    types:  config['fp.params'].slice(0),
     config: _.extend({}, config.config)
   };
 }
 
-function doBuildImages(ctx, docker, buildJobs, nocache) {
-  if (buildJobs.length > 0) {
-    var job = buildJobs.shift();
-    console.log("    " + job.getLabel().green + " --> " + job.getImageNameWithVersion().cyan);
-    var tar = child.spawn(tarCmd, ['-c', '.'], {cwd: job.getPath(ctx.root)});
-    var fullName = job.getImageNameWithVersion();
-    docker.buildImage(
-      tar.stdout, {"t": fullName, "forcerm": true, "q": true, "nocache": nocache ? "true" : "false"},
-      function (error, stream) {
-        if (error) {
-          throw error;
-        }
-        stream.pipe(getResponseStream());
-        stream.on('end', function () {
-          job.getTags().forEach(function (tag) {
-            docker.getImage(fullName).tag({repo: job.getImageName(), tag: tag, force: 1}, function (error, result) {
-              console.log(result.gray);
-              if (error) {
-                throw error;
-              }
-            });
-          });
-          console.log();
-          doBuildImages(ctx, docker, buildJobs, nocache);
-        });
-      });
-  }
-}
-
-function getResponseStream() {
-  var buildResponseStream = new stream.Writable();
-  buildResponseStream._write = function (chunk, encoding, done) {
-    var answer = chunk.toString();
-    var resp = JSON.parse(answer);
-
-    debug("|| >>> " + answer);
-    if (resp.stream) {
-      process.stdout.write("    " + resp.stream.gray);
-    }
-    if (resp.errorDetail) {
-      process.stderr.write("++++++++ ERROR +++++++++++\n".red);
-      process.stderr.write(resp.errorDetail.message.red);
-    }
-    done();
-  };
-  return buildResponseStream;
-}
 
 function addSslIfNeeded(param, ctx) {
   var port = param.port;
@@ -437,7 +386,8 @@ function createHelp(ctx) {
       "Images:\n\n";
     images.forEach(function (image) {
       var config = image.config;
-      help += "   " + image.dir + ": " + config.versions.join(", ") + "\n";
+      // TODO: Split out all names /wr to images
+      help += "   " + image.dir + ": " + config['fp.params'].join(", ") + "\n";
     });
   } else {
     help += "\nNo images found\n";

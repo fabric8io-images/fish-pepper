@@ -1,4 +1,12 @@
 ---
-  repoUser: "jolokia"
+  # Variable influencing the behaviour of fish-pepper are prefixed with 'fp.'
+
+  # Registry for building the name when building images with '-b'. Can be omitted
+  # in which case no registry is used
+  fp.registry: "docker.io"
+  # A user which is used as default when no image stem is given
+  fp.repoUser: "jolokia"
+
+  # Custom global variables useful in templates
   maintainer: "roland@jolokia.org"
 

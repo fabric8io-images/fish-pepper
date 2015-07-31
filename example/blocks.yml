@@ -1,4 +1,7 @@
 ---
+# Blocks hold reusable text parts which also contain contain template variables
+
+# Footer used in README
 readme-footer: |
   * Java Version: **{{= it.config.version.fullVersion}}** (base image: *{{= it.config.version.java}}*)
   * Jolokia Version: **{{= it.jolokiaVersion}}**
