@@ -10,6 +10,7 @@
   config:
     version:
       openjdk-6:
+        version: "1.6"
         java: "java:6b35"
         tags:
           - "6b35"
@@ -17,6 +18,7 @@
           - "openjdk-6"
         fullVersion: "OpenJDK 1.6.0_35 (6b35-1.13.7-1~deb7u1)"
       openjdk-7:
+        version: "1.7"
         java: "java:7u79"
         tags:
           - "7u79"
@@ -25,6 +27,7 @@
           - "latest"
         fullVersion: "OpenJDK 1.7.0_79 (7u79-2.5.5-1~deb8u)"
       openjdk-8:
+        version: "1.8"
         java: "java:8u45"
         tags:
           - "8u45"

@@ -129,6 +129,30 @@ function getFragments(path) {
     return fragments;
 }
 
+function createBuildJobs(image,params) {
+    var jobs = [];
+
+    var collect = function(types,values) {
+        if (types.length === 0) {
+            jobs.push(new ImageJob(image,params.types,values));
+        } else {
+            var type = types.shift();
+            var paramValues = Object.keys(params.config[type]).sort();
+            paramValues.forEach(function (paramValue) {
+                var valuesClone = values.slice(0);
+                valuesClone.push(paramValue);
+                collect(types.slice(0), valuesClone);
+            });
+        }
+    };
+
+    collect(params.types.slice(0),[]);
+    return jobs;
+}
+
+
+
+
 function buildImages(ctx, images) {
     console.log("\n\nBuilding Images\n".cyan);
 
@@ -137,7 +161,7 @@ function buildImages(ctx, images) {
     images.forEach(function(image) {
         console.log(image.name.magenta);
         var params = extractParams(image.config,ctx.options.param);
-        doBuildImages(ctx, docker, image, params, ctx.options.nocache);
+        doBuildImages(ctx, docker, createBuildJobs(image,params), ctx.options.nocache);
     });
 }
 
@@ -216,26 +240,12 @@ function extractParams(config,paramFromOpts) {
     };
 }
 
-function getFullVersion(config,param) {
-    var buildVersion = config.buildVersion;
-    var imageVersion = config.config[param].version;
-    if (!imageVersion && buildVersion) {
-        return buildVersion;
-    } else if (!imageVersion) {
-        return "latest";
-    } else {
-        return imageVersion + (buildVersion ? "-" + buildVersion : "");
-    }
-}
-
-function doBuildImages(ctx, docker, image, buildJobs, nocache) {
+function doBuildImages(ctx, docker, buildJobs, nocache) {
     if (buildJobs.length > 0) {
         var job = buildJobs.shift();
-        console.log("    " + job.green);
-        var tar = child.spawn(tarCmd, ['-c', '.'], { cwd: ctx.root + "/" + image.name + "/" + job });
-        var repoUser = image.config.repoUser ? image.config.repoUser + "/" : "";
-        var name = repoUser + image.name + (job !== "0" ? "-" + job : "");
-        var fullName = name + ":" + getFullVersion(image.config,job);
+        console.log("    " + job.getLabel().green);
+        var tar = child.spawn(tarCmd, ['-c', '.'], { cwd: job.getPath(ctx.root) });
+        var fullName = job.getImageNameWithVersion();
         docker.buildImage(
             tar.stdout, { "t": fullName, "forcerm": true, "q": true, "nocache": nocache ? "true" : "false" },
             function (error, stream) {
@@ -244,15 +254,75 @@ function doBuildImages(ctx, docker, image, buildJobs, nocache) {
                 }
                 stream.pipe(getResponseStream());
                 stream.on('end', function () {
-                    docker.getImage(fullName).tag({repo: name, force: 1}, function (error, result) {
-                        console.log(result);
-                        if (error) { throw error; }
+                    job.getTags().forEach(function(tag) {
+                        docker.getImage(fullName).tag({repo: job.getImageName(), tag : tag, force: 1}, function (error, result) {
+                            console.log(result);
+                            if (error) { throw error; }
+                        });
                     });
-                    doBuildImages(ctx, docker, image, buildJobs, nocache);
+                    doBuildImages(ctx, docker, buildJobs, nocache);
                 });
             });
     }
 }
+
+function ImageJob(image,types,paramValues) {
+
+    this.getPath = function(root) {
+        return root + "/" + image.name + "/" + paramValues.join("/");
+    };
+
+    this.getLabel = function() {
+        return paramValues.join(", ");
+    };
+
+    function getVersion() {
+        var versionsFromType = [];
+        forEachParamValueConfig(function(config) {
+            if (config && config.version) {
+                versionsFromType.push(config.version);
+            }
+        });
+
+        var buildVersion = image.config.buildVersion;
+        if (buildVersion) {
+            versionsFromType.push(buildVersion);
+        }
+        if (versionsFromType.length > 0) {
+            return versionsFromType.join("-");
+        } else {
+            return "latest";
+        }
+    }
+
+    function forEachParamValueConfig(callback) {
+        for (var i = 0; i < types.length; i++) {
+            var c = image.config.config[types[i]][paramValues[i]];
+            callback(c);
+        }
+    }
+
+    this.getImageName = function() {
+        var repoUser = image.config.repoUser ? image.config.repoUser + "/" : "";
+        return repoUser + image.name + "-" + paramValues.join("-");
+    };
+
+    this.getImageNameWithVersion = function() {
+        return this.getImageName() + ":" + getVersion();
+    };
+
+    this.getTags = function() {
+        var ret = [];
+        forEachParamValueConfig(function(config) {
+            if (config && config.tags) {
+                Array.prototype.push.apply(ret, config.tags);
+            }
+        });
+        return ret;
+    }
+
+}
+
 
 function getResponseStream() {
     var buildResponseStream = new stream.Writable();
