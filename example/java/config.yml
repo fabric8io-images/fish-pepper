@@ -1,14 +1,13 @@
 ---
   # Two dimensional build: 1st dimension == version (7 or 8), 2nd dimension == type (jdk or jre)
-  fp.params:
-    - "version"
-    - "type"
-
-  # Name stem to use for the images to create with -b (param value will be appended with -)
-  fp.name: "jolokia/fish-pepper-java"
-
-  # Internal build number. Should be increased for each change
-  fp.build: 2
+  fish-pepper:
+    params:
+      - "version"
+      - "type"
+    # Name stem to use for the images to create with -b (param value will be appended with -)
+    name: "jolokia/fish-pepper-java"
+    # Internal build number. Should be increased for each change
+    build: 2
 
   # Image specific vars used within templates
   jolokiaBaseUrl: "http://central.maven.org/maven2/org/jolokia/jolokia-jvm"
@@ -22,16 +21,18 @@
     version:
       openjdk-7:
         # The version is used in the tag
-        fp.version: "1.7"
-        # Additional tags to add
-        fp.tags:
-          - "7u79"
+        fish-pepper:
+          version: "1.7"
+          # Additional tags to add
+          tags:
+            - "7u79"
         # Template variables
         java: "java:7u79"
         fullVersion: "OpenJDK 1.7.0_79 (7u79-2.5.5-1~deb8u)"
       openjdk-8:
-        fp.version: "1.8"
-        fp.tags:
+        fish-pepper:
+          version: "1.8"
+          tags:
           - "8u45"
         java: "java:8u45"
         fullVersion: "OpenJDK 1.8.0_45 (1.8.0_45-internal-b14)"

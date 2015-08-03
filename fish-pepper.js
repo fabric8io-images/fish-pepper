@@ -132,18 +132,27 @@ function getImages(ctx) {
   }
   return _.map(imageNames, function (name) {
     var config = getImageConfig(ctx, name);
-    var repoUser = ctx.config['fp.repoUser'] ? ctx.config['fp.repoUser'] + "/" : "";
+    var repoUser = config.fpConfig('repoUser');
+    repoUser =  repoUser ? repoUser + "/" : "";
+    var fullImageName = config.fpConfig('name') || repoUser + name;
     return {
       "dir": name,
-      "name": config['fp.name'] ? config['fp.name'] : repoUser + name,
-      "config": getImageConfig(ctx, name)};
+      "name": fullImageName,
+      "config": config};
   })
 }
 
 function getImageConfig(ctx, image) {
-  return _.extend({},
-    ctx.config,
-    readConfig(ctx.root + "/" + image, "config"));
+  var ret =
+    _.extend(
+      {},
+      ctx.config,
+      readConfig(ctx.root + "/" + image, "config"));
+
+  ret.fpConfig = function(key) {
+    return ret['fish-pepper'] ? ret['fish-pepper'][key] : undefined;
+  };
+  return ret;
 }
 
 // Return all params in the right order and the individual configuration per param
@@ -151,7 +160,7 @@ function extractParams(config, paramFromOpts) {
   // TODO: Filter out params if requested from the commandline with paramFromOpts
   return {
     // Copy objects
-    types:  config['fp.params'].slice(0),
+    types:  config.fpConfig('params').slice(0),
     config: _.extend({}, config.config)
   };
 }
@@ -180,7 +189,6 @@ function setupContext() {
     getopt.showHelp();
     return process.exit(0);
   }
-
   return ctx;
 }
 

@@ -29,8 +29,9 @@ function createImageName(image, types, paramValues) {
       getTags: function () {
         var ret = [];
         forEachParamValueConfig(function (config) {
-          if (config && config['fp.tags']) {
-            Array.prototype.push.apply(ret, config['fp.tags']);
+          var tags = fpConfig(config,'tags');
+          if (tags) {
+            Array.prototype.push.apply(ret, tags);
           }
         });
         return ret;
@@ -41,19 +42,20 @@ function createImageName(image, types, paramValues) {
 
   function getImageName()
   {
-    var registry = image.config['fp.registry'] ? image.config['fp.registry'] + "/" : "";
+    var registry = image.config.fpConfig('registry') ? image.config.fpConfig('registry') + "/" : "";
     return registry + image.name + "-" + paramValues.join("-");
   }
 
   function getVersion() {
     var versionsFromType = [];
     forEachParamValueConfig(function (config) {
-      if (config && config['fp.version']) {
-        versionsFromType.push(config['fp.version']);
+      var version = fpConfig(config,'version');
+      if (version) {
+        versionsFromType.push(version);
       }
     });
 
-    var buildVersion = image.config['fp.build'];
+    var buildVersion = image.config.fpConfig('build');
     if (buildVersion) {
       versionsFromType.push(buildVersion);
     }
@@ -62,6 +64,10 @@ function createImageName(image, types, paramValues) {
     } else {
       return "latest";
     }
+  }
+
+  function fpConfig(config, key) {
+    return config && config['fish-pepper'] ? config['fish-pepper'][key] : undefined;
   }
 
   function forEachParamValueConfig(callback) {
