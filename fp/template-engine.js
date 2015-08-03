@@ -5,49 +5,47 @@ var _ = require('underscore');
 var dot = require('dot');
 dot.templateSettings.strip = false;
 var fs = require('fs');
+var util = require("./util");
 
-exports.create = function(root, image, templates, blocks) {
+exports.forEachTemplate = function(ctx, image, params, blocks, templFunc) {
+  var dir = ctx.root + "/" + image.dir;
 
-  var paramConfig = {};
-  var path = [];
-  var params = {};
+  var templateContext = createContext(ctx.root, image, params, parseTemplates(dir), blocks);
+  util.foreachParamValue(params, function(paramValues) {
+    templFunc(templateContext, paramValues);
+  });
+};
+
+function parseTemplates(dir) {
+  var templ_dir = dir + "/templates";
+  var templates = fs.readdirSync(templ_dir);
+
+  var parsedTemplates = [];
+  templates.forEach(function (template) {
+    parsedTemplates.push({
+      "templ": dot.template(fs.readFileSync(templ_dir + "/" + template)),
+      "file":  template
+    });
+  });
+  return parsedTemplates;
+}
+
+function createContext(root, image, params, templates, blocks) {
 
   return {
 
-    pushParamValue: function (el) {
-      path.push(el);
-    },
-
-    popParamValue: function () {
-      path.pop();
-    },
-
-    updateParamValue: function (type, val) {
-      params[type] = val;
-      paramConfig[type] = _.extend({}, getParamConfigFor(type, val));
-    },
-
-    getParamValuesFor: function (type) {
-      var config = image.config.config[type] || {};
-      return _.keys(config).sort();
-    },
-
     getParamConfigFor: getParamConfigFor,
 
-    getParamLabel: function () {
-      return path.join(", ");
-    },
-
-    getPath: function (file) {
-      return root + "/" + image.dir + "/" + path.join("/") + (file ? "/" + file : "");
+    getPath: function (values, file) {
+      return root + "/" + image.dir + "/" + values.join("/") + (file ? "/" + file : "");
     },
 
     forEachTemplate: function (fn) {
       templates.forEach(fn);
     },
 
-    fillTemplate: function (file, template) {
-      var context = getTemplateContext(fillBlocks());
+    fillTemplate: function (paramValues, file, template) {
+      var context = getTemplateContext(paramValues, fillBlocks(paramValues));
       var newContent = template(context).trim() + "\n";
       if (!newContent.length) {
         return "SKIPPED".grey;
@@ -65,7 +63,7 @@ exports.create = function(root, image, templates, blocks) {
     checkForMapping: function (file) {
       if (/^__.*$/.test(file)) {
         var mapping = undefined;
-        params.keys().forEach(function (param) {
+        params.types.forEach(function (param) {
           var mappings = getParamConfigFor(param)["mappings"];
           if (!mappings) {
             mappings = image.config.config["default"].mappings;
@@ -89,30 +87,40 @@ exports.create = function(root, image, templates, blocks) {
       return c[val] || {};
   }
 
-  function getTemplateContext(blocks) {
+  function getTemplateContext(paramValues,blocks) {
+    var paramConfig = {};
+    var paramValMap = {};
+    for (var i = 0; i < params.types.length; i++) {
+      var type = params.types[i];
+      var val = paramValues[i];
+      paramConfig[type] = params.config[type][val];
+      paramValMap[type] = val;
+    }
+
     return _.extend(
       {},
       image.config,
       blocks ? {"blocks": blocks} : {},
       {
-        "param":  params,
-        "blocks": blocks,
+        "param":  paramValMap,
         "config": _.extend({}, image.config.config['default'], paramConfig)
       });
   }
 
-  function fillBlocks() {
+  function fillBlocks(paramValues) {
     var ret = {};
     for (var key in blocks) {
       if (blocks.hasOwnProperty(key)) {
         var template = dot.template(blocks[key]);
-        ret[key] = template(getTemplateContext());
+        ret[key] = template(getTemplateContext(paramValues));
       }
     }
     return ret;
   }
 
 };
+
+
 
 
 

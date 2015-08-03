@@ -1,29 +1,16 @@
-exports.createJobs = function(image,params) {
+var util = require("./util");
 
+exports.createImageNames = function(image,params) {
   var jobs = [];
-
-  // Function for doing a fan-out on param values, called recursively
-  var collect = function (types, values) {
-    if (types.length === 0) {
-      jobs.push(createJob(image, params.types, values));
-    } else {
-      var type = types.shift();
-      var paramValues = Object.keys(params.config[type]).sort();
-      paramValues.forEach(function (paramValue) {
-        var valuesClone = values.slice(0);
-        valuesClone.push(paramValue);
-        collect(types.slice(0), valuesClone);
-      });
-    }
-  };
-
-  collect(params.types.slice(0), []);
+  util.foreachParamValue(params,function(values) {
+      jobs.push(createImageName(image, params.types, values));
+  });
   return jobs;
 };
 
 // ====================================================================
 
-function createJob(image, types, paramValues) {
+function createImageName(image, types, paramValues) {
   return {
       getPath: function (root) {
         return root + "/" + image.dir + "/" + paramValues.join("/");
