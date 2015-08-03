@@ -6,6 +6,7 @@ require('colors');
 var _ = require('underscore');
 var yaml = require('js-yaml');
 var mkdirp = require('mkdirp');
+var pjson = require('./package.json');
 
 // Own modules:
 var templateEngine = require('./fp/template-engine');
@@ -258,5 +259,7 @@ function createHelp(ctx) {
   } else {
     help += "\nNo images found\n";
   }
+  help +="\n-----\nfish-pepper " + pjson.version;
+
   return help;
 }
