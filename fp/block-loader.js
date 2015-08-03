@@ -4,6 +4,8 @@ var yaml = require('js-yaml');
 
 exports.load = function() {
   var blocks = {};
+
+  // Check files
   Array.prototype.slice.call(arguments).forEach(function(path) {
     [".txt",".yml",".yaml"].forEach(function(ext) {
       if (fs.existsSync(path + ext)) {
@@ -14,7 +16,17 @@ exports.load = function() {
         }
       }
     });
+
+    // Check directory, filename (without extension) is used as block name
+    if (fs.existsSync(path) && fs.statSync(path).isDirectory()) {
+      var files = fs.readdirSync(path);
+      files.forEach(function (file) {
+        var name = file.replace(/\..*$/,"");
+        blocks[name] = fs.readFileSync(path + "/" + file, "utf8");
+      });
+    }
   });
+
   return blocks;
 };
 
