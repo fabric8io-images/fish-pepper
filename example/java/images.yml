@@ -19,7 +19,7 @@
   # are used to create the directory hierarchy and also used within the image names.
   config:
     version:
-      openjdk-7:
+      openjdk7:
         # The version is used in the tag
         fish-pepper:
           version: "1.7"
@@ -29,7 +29,7 @@
         # Template variables
         java: "java:7u79"
         fullVersion: "OpenJDK 1.7.0_79 (7u79-2.5.5-1~deb8u)"
-      openjdk-8:
+      openjdk8:
         fish-pepper:
           version: "1.8"
           tags:
