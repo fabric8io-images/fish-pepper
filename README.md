@@ -305,12 +305,5 @@ for building a [Jolokia](http://www.jolokia.org) enabled Java
 image. The build it quite similar and we will build for OpenJDK 7 and
 8 with a JDK and JRE, respectively.
 
-All the configuration files are documented, so please have a look how 
-the tepmplating works.
-
-The top-level `fish-pepper.yml` holds definitions which can are global
-for all images used.
- 
-Each sub-directory is checked for a `fp-config.yml` and if this exists, 
-this directory is supposed to specify a fish-pepper build where the image 
-is by default named like the directory.
+All the configuration files are documented, so please have a look a
+them to see how the tepmplating works.
