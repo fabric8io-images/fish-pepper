@@ -1,11 +1,11 @@
 var util = require("./util");
 
 exports.createImageNames = function(image,params) {
-  var jobs = [];
+  var imageNames = [];
   util.foreachParamValue(params,function(values) {
-      jobs.push(createImageName(image, params.types, values));
+      imageNames.push(createImageName(image, params.types, values));
   });
-  return jobs;
+  return imageNames;
 };
 
 // ====================================================================
@@ -13,7 +13,7 @@ exports.createImageNames = function(image,params) {
 function createImageName(image, types, paramValues) {
   return {
       getPath: function (root) {
-        return root + "/" + image.dir + "/" + paramValues.join("/");
+        return root + "/" + image.dir + "/images/" + paramValues.join("/");
       },
 
       getLabel: function () {
@@ -71,6 +71,7 @@ function createImageName(image, types, paramValues) {
   }
 
   function forEachParamValueConfig(callback) {
+
     for (var i = 0; i < types.length; i++) {
       var c = image.config.config[types[i]][paramValues[i]];
       callback(c);

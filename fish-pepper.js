@@ -52,7 +52,7 @@ function createDockerFileDirs(ctx, images) {
     console.log(image.dir.magenta);
     var blocks = blockLoader.load(ctx.root + "/blocks", ctx.root + "/" + image.dir + "/blocks");
     var config = image.config;
-    var params = extractParams(config, ctx.options.param);
+    var params = extractParams(config, ctx.options);
 
     templateEngine.forEachTemplate(ctx, image, params, blocks, function(templateCtx, paramValues) {
       fillTemplates(templateCtx, paramValues);
@@ -95,7 +95,7 @@ function buildImages(ctx, images) {
   var docker = dockerBackend.create(ctx.options);
 
   images.forEach(function(image) {
-    var params = extractParams(image.config, ctx.options.param);
+    var params = extractParams(image.config, ctx.options);
     imageBuilder.build(ctx.root, docker, params, image, { nocache: ctx.options.nocache, debug: DEBUG });
   });
 }
@@ -156,14 +156,28 @@ function getImageConfig(ctx, image) {
 }
 
 // Return all params in the right order and the individual configuration per param
-function extractParams(config, paramFromOpts) {
+function extractParams(config, opts) {
   // TODO: Filter out params if requested from the commandline with paramFromOpts
   return {
     // Copy objects
     types:  config.fpConfig('params').slice(0),
-    config: _.extend({}, config.config)
+    config: _.extend({}, opts.experimental ? config.config : removeExperimentalConfigs(config.config))
   };
 }
+
+function removeExperimentalConfigs(config) {
+  var ret = _.extend({},config);
+  _.keys(config).forEach(function(type) {
+    _.keys(config[type]).forEach(function(key) {
+      var typeConfig = config[type][key];
+      if (typeConfig.experimental) {
+        delete ret[type][key];
+      }
+    });
+  });
+  return ret;
+}
+
 
 
 function setupContext() {
@@ -175,6 +189,7 @@ function setupContext() {
     ['d', 'host', 'Docker hostname (default: localhost)'],
     ['p', 'port', 'Docker port (default: 2375)'],
     ['n', 'nocache', 'Don\'t cache when building images'],
+    ['e', 'experimental', 'Include images which are marked as experimental'],
     ['h', 'help', 'display this help']
   ]);
 

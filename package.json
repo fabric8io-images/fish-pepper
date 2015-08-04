@@ -1,7 +1,7 @@
 {
   "name": "fish-pepper",
   "description": "Tool for creating a suite of Docker images out of templates",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "author": {
     "name": "Roland Huss",
     "email": "npm@ro14nd.de",

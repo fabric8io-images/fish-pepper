@@ -9,12 +9,12 @@ exports.build = function(root, docker, params, image, opts) {
   doBuildImages(root, docker, imageNames.createImageNames(image, params),opts);
 };
 
-function doBuildImages(root, docker, buildJobs, opts) {
-  if (buildJobs && buildJobs.length > 0) {
-    var job = buildJobs.shift();
-    console.log("    " + job.getLabel().green + " --> " + job.getImageNameWithVersion().cyan);
-    var tar = child.spawn(tarCmd, ['-c', '.'], {cwd: job.getPath(root)});
-    var fullName = job.getImageNameWithVersion();
+function doBuildImages(root, docker, imageNames, opts) {
+  if (imageNames && imageNames.length > 0) {
+    var imageName = imageNames.shift();
+    console.log("    " + imageName.getLabel().green + " --> " + imageName.getImageNameWithVersion().cyan);
+    var tar = child.spawn(tarCmd, ['-c', '.'], {cwd: imageName.getPath(root)});
+    var fullName = imageName.getImageNameWithVersion();
     docker.buildImage(
       tar.stdout, {"t": fullName, "forcerm": true, "q": true, "nocache": (opts && opts.nocache) ? "true" : "false"},
       function (error, stream) {
@@ -23,9 +23,9 @@ function doBuildImages(root, docker, buildJobs, opts) {
         }
         stream.pipe(getResponseStream(opts && opts.debug));
         stream.on('end', function () {
-          job.getTags().forEach(function (tag) {
+          imageName.getTags().forEach(function (tag) {
             docker.getImage(fullName).tag(
-              {repo: job.getImageName(), tag: tag, force: 1},
+              {repo: imageName.getImageName(), tag: tag, force: 1},
               function (error, result) {
                 console.log(result.gray);
                 if (error) {
@@ -35,7 +35,7 @@ function doBuildImages(root, docker, buildJobs, opts) {
           });
           console.log();
           // Chain it so that it runs sequentially
-          doBuildImages(root, docker, buildJobs, opts);
+          doBuildImages(root, docker, imageNames, opts);
         });
       });
   }
@@ -43,19 +43,27 @@ function doBuildImages(root, docker, buildJobs, opts) {
 
 function getResponseStream(debug) {
   var buildResponseStream = new stream.Writable();
+  var rest = "";
   buildResponseStream._write = function (chunk, encoding, done) {
     var answer = chunk.toString();
-    var resp = JSON.parse(answer);
 
     if (debug) {
       process.stdout.write("|| >>> " + answer + "\n");
     }
-    if (resp.stream) {
-      process.stdout.write("    " + resp.stream.gray);
-    }
-    if (resp.errorDetail) {
-      process.stderr.write("++++++++ ERROR +++++++++++\n".red);
-      process.stderr.write(resp.errorDetail.message.red);
+
+    try {
+      var resp = JSON.parse(rest + answer);
+
+      if (resp.stream) {
+        process.stdout.write("    " + resp.stream.gray);
+      }
+      if (resp.errorDetail) {
+        process.stderr.write("++++++++ ERROR +++++++++++\n".red);
+        process.stderr.write(resp.errorDetail.message.red);
+      }
+      rest = "";
+    } catch (e) {
+      rest += answer;
     }
     done();
   };

@@ -37,7 +37,7 @@ function createContext(root, image, params, templates, blocks) {
     getParamConfigFor: getParamConfigFor,
 
     getPath: function (values, file) {
-      return root + "/" + image.dir + "/" + values.join("/") + (file ? "/" + file : "");
+      return root + "/" + image.dir + "/images/" + values.join("/") + (file ? "/" + file : "");
     },
 
     forEachTemplate: function (fn) {
