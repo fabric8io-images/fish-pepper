@@ -120,7 +120,7 @@ function getImages(ctx) {
   }
   var allImageNames = _.filter(fs.readdirSync(ctx.root), function (f) {
     var p = ctx.root + "/" + f;
-    return fs.statSync(p).isDirectory() && existsConfig(p, "config");
+    return fs.statSync(p).isDirectory() && existsConfig(p, "images");
   });
 
   if (ctx.options.image) {
@@ -147,7 +147,7 @@ function getImageConfig(ctx, image) {
     _.extend(
       {},
       ctx.config,
-      readConfig(ctx.root + "/" + image, "config"));
+      readConfig(ctx.root + "/" + image, "images"));
 
   ret.fpConfig = function(key) {
     return ret['fish-pepper'] ? ret['fish-pepper'][key] : undefined;
@@ -161,7 +161,7 @@ function extractParams(config, opts) {
   return {
     // Copy objects
     types:  config.fpConfig('params').slice(0),
-    config: _.extend({}, opts && opts.experimental ? config.config : removeExperimentalConfigs(config.config))
+    config: _.extend({}, !opts || opts.experimental ? config.config : removeExperimentalConfigs(config.config))
   };
 }
 
@@ -255,7 +255,8 @@ function findConfig(dir, file) {
 function createHelp(ctx) {
   var help =
     "Usage: fish-pepper [OPTION] \<dir\>\n" +
-    "Generator for Dockerfiles from templates\n" +
+    "\n" +
+    "Generate Dockerfiles from templates\n" +
     "\n" +
     "[[OPTIONS]]\n" +
     "\n" +
@@ -263,7 +264,19 @@ function createHelp(ctx) {
     "\"fish-pepper.json\" or \"fish-pepper.yml\" config. If not given the current or the first parent directory\n" +
     "containing the configuration is used\n" +
     "\n" +
-    "This script creates Dockerfiles out of templates with a set of given parameters\n" +
+    "Examples:\n" +
+    "\n" +
+    "   # Find a 'fish-pepper.yml' in this or a parent directory and examine and use\n" +
+    "   # the images found there to create Dockerfiles from templates\n" +
+    "   fish-pepper\n" +
+    "\n" +
+    "   # Create all images found in \"example\" directory\n" +
+    "   fish-pepper example\n" +
+    "\n" +
+    "   # Create only the image family \"java\" in \"example\" and build the images\n" +
+    "   fish-pepper example -i java -b\n" +
+    "\n" +
+    "Please refer to http://fish-pepper.org for a full reference manual as well as tutorials\n" +
     "\n";
   var images = getImages(ctx);
   if (images) {
