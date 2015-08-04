@@ -145,6 +145,28 @@ combination (`--param`) is processed.
 
 ### Configuration
 
+There are two kinds of configuration file:
+
+* A global configuration `fish-pepper.yml` global, image independent
+  configuration, like a default Docker user name or the maintainer to
+  use within the Dockerfile.
+* A per image family configuration `images.yml` which declares the
+  parameterization of the images and image specific configuration.
+
+The configuration can be given either in [YAML](http://yaml.org/)
+syntax (with the file extensions `.yml` or `.yaml`) or in plain JSON
+(with extension `.json`).
+
+Configuration within a `fish-pepper` section section in those files
+influence the behaviour of the image generation and the property names
+have a special meaning. All other configurations are mostly relevant
+for the templating.
+
+#### `fish-pepper.yml`
+
+
+
+
 #### Templates
 
 #### Blocks
