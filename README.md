@@ -1,26 +1,27 @@
-## fish-pepper - Spicing up your ocean life
+## fish-pepper - Spice up your ocean life
 
 `fish-pepper` allows you to create many similar Dockerfiles based on
-templates. The problem when authoring Dockerfiles for various
-situations is that you only can use *inheritance* within Dockerfiles
-easily and there is no direct support for  *compositions* when
-building Docker images. 
+templates. When creating Dockerfiles for various
+use cases you can only use *inheritance* with a base
+Dockerfile. However, often *compositions* would better fit but there
+is no direct support for Dockerfiles yet.
 
-This is especially hurtful when you want you create some *base images*
+This is especially hurtful when you want to create some *base images*
 for other images. Consider a **Java base image**: Some users might
 require Java 7, some want Java 8. For running Miroservices a JRE might
-be sufficient in other use cases you will need a full JDK. Theses four
-variants are all quite similar with respect to the documentation, 
-Dockerfiles and support files. Copy-and-paste is not a good
-solution when you consider that these images evolve over time or when
-you have even more parameters.
+be sufficient in other use cases you need a full JDK. Theses four
+variants are all quite similar with respect to documentation,
+Dockerfiles and support files like startup scripts.  Copy-and-paste
+might work but is not a good solution considering the image evolution
+over time or introducing even more parameters.
 
 With `fish-pepper` you can use flexible templates which are filled with
-variations of the base image (`'version' : [ 'java7', 'java8'],
-'type': ['jdk', 'jre']`) and which will create multiple, similar
-Dockerfile setups.
+variations of the base image (like `'version' : [ 'java7', 'java8']`,
+`'type': ['jdk', 'jre']`) and which will create multiple, similar
+Dockerfile builds. The [example](example) below dives into this
+example in more details. 
 
-The generated directories can be used to create the images directly
+The generated build files can also be used directly to create the images
 with `fish-pepper` against a running Docker daemon or they can be used
 as automated Dockerhub builds when checked in into git.
 
@@ -63,7 +64,7 @@ configuration file contains various global properties valid for all
 images. It also has default values for image names and other
 internally used parameters.
 
-A Sub-directory within the root directory is considered to be an
+A sub-directory within the root directory is considered to be an
 **image family**. A image family shares the same templates and has a
 configuration file `images.yml` (or `.json`) which declares which
 parameters the image family has and the individual configuration
