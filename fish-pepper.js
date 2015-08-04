@@ -161,7 +161,7 @@ function extractParams(config, opts) {
   return {
     // Copy objects
     types:  config.fpConfig('params').slice(0),
-    config: _.extend({}, opts.experimental ? config.config : removeExperimentalConfigs(config.config))
+    config: _.extend({}, opts && opts.experimental ? config.config : removeExperimentalConfigs(config.config))
   };
 }
 
