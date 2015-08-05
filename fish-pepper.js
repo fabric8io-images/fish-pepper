@@ -170,7 +170,7 @@ function removeExperimentalConfigs(config) {
   _.keys(config).forEach(function(type) {
     _.keys(config[type]).forEach(function(key) {
       var typeConfig = config[type][key];
-      if (typeConfig.experimental) {
+      if (typeConfig['fish-pepper'] && typeConfig['fish-pepper'].experimental) {
         delete ret[type][key];
       }
     });
@@ -256,7 +256,7 @@ function createHelp(ctx) {
   var help =
     "Usage: fish-pepper [OPTION] \<dir\>\n" +
     "\n" +
-    "Generate Dockerfiles from templates\n" +
+    "Multidimensional Docker Build Generator\n" +
     "\n" +
     "[[OPTIONS]]\n" +
     "\n" +
@@ -266,11 +266,11 @@ function createHelp(ctx) {
     "\n" +
     "Examples:\n" +
     "\n" +
-    "   # Find a 'fish-pepper.yml' in this or a parent directory and examine and use\n" +
-    "   # the images found there to create Dockerfiles from templates\n" +
+    "   # Find a 'fish-pepper.yml' in this or a parent directory and use\n" +
+    "   # the images found there to create multiple Docker build directories.\n" +
     "   fish-pepper\n" +
     "\n" +
-    "   # Create all images found in \"example\" directory\n" +
+    "   # Create all image families found in \"example\" directory\n" +
     "   fish-pepper example\n" +
     "\n" +
     "   # Create only the image family \"java\" in \"example\" and build the images\n" +

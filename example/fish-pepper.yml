@@ -1,6 +1,5 @@
 ---
-  # Variable influencing the behaviour of fish-pepper are prefixed with 'fp.'
-
+  # Variable influencing the behaviour of fish-pepper are stored in an extra object 'fish-pepper'
   fish-pepper:
      # Registry for building the name when building images with '-b'. Can be omitted
      # in which case no registry is used
