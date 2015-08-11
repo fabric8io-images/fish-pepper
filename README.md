@@ -1,4 +1,4 @@
-## fish-pepper - Spice up your ocean life
+## fish-pepper - Spicing up the ocean
 
 `fish-pepper` allows you to create many similar Dockerfiles based on
 templates. When creating Dockerfiles for various

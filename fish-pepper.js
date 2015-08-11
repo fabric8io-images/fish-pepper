@@ -1,4 +1,5 @@
-#!/usr/local/bin/node
+#!/bin/sh
+':' //; exec "`command -v node || command -v nodejs`" "$0" "$@"
 
 var fs = require('fs');
 var path = require('path');
