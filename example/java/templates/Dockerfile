@@ -1,15 +1,15 @@
-FROM {{= it.config.version.java + it.config.type.extension }}
+FROM {{= fp.config.version.java + fp.config.type.extension }}
 
-MAINTAINER {{= it.maintainer }}
+MAINTAINER {{= fp.maintainer }}
 
-ENV JOLOKIA_VERSION {{= it.jolokiaVersion }}
+ENV JOLOKIA_VERSION {{= fp.jolokiaVersion }}
 
 # Add environment setup script
 ADD jolokia_opts /bin/
 
 RUN chmod 755 /bin/jolokia_opts \
  && mkdir /opt/jolokia \
- && wget {{= it.jolokiaBaseUrl}}/{{= it.jolokiaVersion}}/jolokia-jvm-{{= it.jolokiaVersion}}-agent.jar -O /opt/jolokia/jolokia.jar
+ && wget {{= fp.jolokiaBaseUrl}}/{{= fp.jolokiaVersion}}/jolokia-jvm-{{= fp.jolokiaVersion}}-agent.jar -O /opt/jolokia/jolokia.jar
 
 # Print out the version by default
 CMD java -jar /opt/jolokia/jolokia.jar --version

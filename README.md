@@ -1,13 +1,10 @@
 ## fish-pepper - Spicing up the ocean
 
-`fish-pepper` allows you to create many similar Dockerfiles based on
-templates. When creating Dockerfiles for various
-use cases you can only use *inheritance* with a base
-Dockerfile. However, often *compositions* would better fit but there
-is no direct support for Dockerfiles yet.
+`fish-pepper` is a build system for Docker images. It allows you to create 
+many similar Docker builds based on templates. This allows for *compositions* of 
+building blocks in addition to the usual *inheritance* with `FROM`. 
 
-This is especially hurtful when you want to create some *base images*
-for other images. Consider a **Java base image**: Some users might
+For example, consider a **Java base image**: Some users might
 require Java 7, some want Java 8. For running Miroservices a JRE might
 be sufficient in other use cases you need a full JDK. Theses four
 variants are all quite similar with respect to documentation,

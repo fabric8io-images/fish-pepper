@@ -21,8 +21,27 @@ exports.load = function() {
     if (fs.existsSync(path) && fs.statSync(path).isDirectory()) {
       var files = fs.readdirSync(path);
       files.forEach(function (file) {
-        var name = file.replace(/\..*$/,"");
-        blocks[name] = fs.readFileSync(path + "/" + file, "utf8");
+        var stat = fs.statSync(path + "/" + file);
+        var name = file.replace(/\..*$/, "");
+        if (stat.isFile()) {
+          blocks[name] = { text: fs.readFileSync(path + "/" + file, "utf8") };
+        } else if (stat.isDirectory()) {
+          // Within a directory we are looking for a file block.<ext> which is the textual block
+          // All other files will be copied over into the build directory (with template substitution)
+          var files = fs.readdirSync(path + "/" + file);
+          var block = {
+            files : []
+          };
+          files.forEach(function(subFile) {
+            var subPath = path + "/" + file + "/" + subFile;
+            if (subFile.match(/^block\./)) {
+              block["text"] = fs.readFileSync(subPath, "utf8");
+            } else {
+              block["files"].push(subPath);
+            }
+          });
+          blocks[name] = block;
+        }
       });
     }
   });
@@ -42,7 +61,7 @@ function readBlockAsText(path) {
     var name = line.match(/^===*\s*([^\s]+)?/);
     if (name) {
       if (!name[1]) { // end-of-fragment
-        blocks[block] = buffer;
+        blocks[block] = { text: buffer };
         buffer = "";
       }
       block = name[1];
@@ -56,5 +75,7 @@ function readBlockAsText(path) {
 }
 
 function readBlockAsYaml(path) {
-  return yaml.safeLoad(fs.readFileSync(path, "utf8"))
+  return _.mapObject(yaml.safeLoad(fs.readFileSync(path, "utf8")),function(val) {
+    return { text: val };
+  });
 }

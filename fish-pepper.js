@@ -6,7 +6,6 @@ var path = require('path');
 require('colors');
 var _ = require('underscore');
 var yaml = require('js-yaml');
-var mkdirp = require('mkdirp');
 var pjson = require('./package.json');
 
 // Own modules:
@@ -63,9 +62,6 @@ function createDockerFileDirs(ctx, images) {
 
 function fillTemplates(templateCtx, paramValues) {
   console.log("    " + paramValues.join(", ").green);
-  var path = templateCtx.getPath(paramValues);
-
-  ensureDir(path);
   var changed = false;
   templateCtx.forEachTemplate(function (template) {
     var file = templateCtx.checkForMapping(template.file);
@@ -74,7 +70,7 @@ function fillTemplates(templateCtx, paramValues) {
       return;
     }
     var templateStatus =
-      templateCtx.fillTemplate(paramValues, templateCtx.getPath(paramValues,file), template.templ);
+      templateCtx.fillTemplate(paramValues, file, template.templ);
     if (templateStatus) {
       var label = file.replace(/.*\/([^\/]+)$/, "$1");
       console.log("       " + label + ": " + templateStatus);
@@ -103,15 +99,6 @@ function buildImages(ctx, images) {
 
 // ===================================================================================
 
-
-function ensureDir(dir) {
-  if (!fs.existsSync(dir)) {
-    mkdirp.sync(dir, 0755);
-  }
-  if (!fs.statSync(dir).isDirectory()) {
-    throw new Error(dir + " is not a directory");
-  }
-}
 
 function getImages(ctx) {
   var imageNames;

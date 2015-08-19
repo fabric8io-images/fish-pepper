@@ -4,8 +4,12 @@
 var _ = require('underscore');
 var dot = require('dot');
 dot.templateSettings.strip = false;
+dot.templateSettings.varname = "fp";
+
 var fs = require('fs');
 var util = require("./util");
+var mkdirp = require('mkdirp');
+var path = require('path');
 
 exports.forEachTemplate = function(ctx, image, params, blocks, templFunc) {
   var dir = ctx.root + "/" + image.dir;
@@ -36,16 +40,15 @@ function createContext(root, image, params, templates, blocks) {
 
     getParamConfigFor: getParamConfigFor,
 
-    getPath: function (values, file) {
-      return root + "/" + image.dir + "/images/" + values.join("/") + (file ? "/" + file : "");
-    },
-
     forEachTemplate: function (fn) {
       templates.forEach(fn);
     },
 
-    fillTemplate: function (paramValues, file, template) {
-      var context = getTemplateContext(paramValues, fillBlocks(paramValues));
+    fillTemplate: function (paramValues, templateFile, template) {
+      var path = getPath(paramValues);
+      ensureDir(path);
+      file = path + "/" + templateFile;
+      var context = getTemplateContext(paramValues);
       var newContent = template(context).trim() + "\n";
       if (!newContent.length) {
         return "SKIPPED".grey;
@@ -87,7 +90,11 @@ function createContext(root, image, params, templates, blocks) {
       return c[val] || {};
   }
 
-  function getTemplateContext(paramValues,blocks) {
+  function getPath(values, file) {
+      return root + "/" + image.dir + "/images/" + values.join("/") + (file ? "/" + file : "");
+  }
+
+  function getTemplateContext(paramValues) {
     var paramConfig = {};
     var paramValMap = {};
     for (var i = 0; i < params.types.length; i++) {
@@ -100,25 +107,43 @@ function createContext(root, image, params, templates, blocks) {
     return _.extend(
       {},
       image.config,
-      blocks ? {"blocks": blocks} : {},
       {
+        "block":  createBlockFunction(paramValues),
         "param":  paramValMap,
         "config": _.extend({}, image.config.config['default'], paramConfig)
       });
   }
 
-  function fillBlocks(paramValues) {
-    var ret = {};
-    for (var key in blocks) {
-      if (blocks.hasOwnProperty(key)) {
-        var template = dot.template(blocks[key]);
-        ret[key] = template(getTemplateContext(paramValues));
+  function createBlockFunction(paramValues) {
+    return function (key) {
+      if (!blocks[key]) {
+        throw new Error("No block with name '" + key + "' defined");
       }
+      if (!blocks[key].text) {
+        throw new Error("No text defined for " + key);
+      }
+      var templateFunc = dot.template(blocks[key].text);
+
+      // Copy over files attached to block
+      var files = blocks[key].files || [];
+      files.forEach(function(file) {
+        var base = path.parse(file).base;
+        fs.writeFileSync(getPath(paramValues,base), fs.readFileSync(file));
+      });
+
+      return templateFunc(getTemplateContext(paramValues));
     }
-    return ret;
   }
 
-};
+  function ensureDir(dir) {
+    if (!fs.existsSync(dir)) {
+      mkdirp.sync(dir, 0755);
+    }
+    if (!fs.statSync(dir).isDirectory()) {
+      throw new Error(dir + " is not a directory");
+    }
+  }
+}
 
 
 

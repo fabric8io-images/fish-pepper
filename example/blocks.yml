@@ -3,7 +3,7 @@
 
 # Footer used in README
 readme-footer: |
-  * Java Version: **{{= it.config.version.fullVersion}}** (base image: *{{= it.config.version.java}}*)
-  * Jolokia Version: **{{= it.jolokiaVersion}}**
+  * Java Version: **{{= fp.config.version.fullVersion}}** (base image: *{{= fp.config.version.java}}*)
+  * Jolokia Version: **{{= fp.jolokiaVersion}}**
   * Jolokia Port: **8778** 
 

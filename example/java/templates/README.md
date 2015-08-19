@@ -17,10 +17,12 @@ Java application
 You can influence the behaviour `jolokia_opts` by setting various environment 
 variables:
 
-{{= it.blocks['config-vars'] }}
+{{= fp.block('config-vars') }}
 
 So, if you start the container with `docker run -e JOLOKIA_OFF ...` no agent will be launched.
 
 The following versions are used:
 
-{{= it.blocks['readme-footer'] }}
+{{= fp.block('readme-footer') }}
+
+{{= fp.block('test') }}

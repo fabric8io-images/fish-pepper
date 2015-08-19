@@ -26,9 +26,7 @@ function getDockerConnectionsParams(options) {
     }
   } else {
     return {
-      "protocol": "http",
-      "host":     "localhost",
-      "port":     2375
+        "socketPath": "/var/run/docker.sock"
     };
   }
 }
