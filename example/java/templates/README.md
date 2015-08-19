@@ -24,5 +24,3 @@ So, if you start the container with `docker run -e JOLOKIA_OFF ...` no agent wil
 The following versions are used:
 
 {{= fp.block('readme-footer') }}
-
-{{= fp.block('test') }}

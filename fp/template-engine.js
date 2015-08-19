@@ -117,12 +117,8 @@ function createContext(root, image, params, templates, blocks) {
   function createBlockFunction(paramValues) {
     return function (key) {
       if (!blocks[key]) {
-        throw new Error("No block with name '" + key + "' defined");
+        return undefined;
       }
-      if (!blocks[key].text) {
-        throw new Error("No text defined for " + key);
-      }
-      var templateFunc = dot.template(blocks[key].text);
 
       // Copy over files attached to block
       var files = blocks[key].files || [];
@@ -131,7 +127,9 @@ function createContext(root, image, params, templates, blocks) {
         fs.writeFileSync(getPath(paramValues,base), fs.readFileSync(file));
       });
 
-      return templateFunc(getTemplateContext(paramValues));
+      return blocks[key].text ?
+        (dot.template(blocks[key].text))(getTemplateContext(paramValues)) :
+        undefined;
     }
   }
 
