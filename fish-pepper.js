@@ -70,7 +70,7 @@ function fillTemplates(templateCtx, paramValues) {
       return;
     }
     var templateStatus =
-      templateCtx.fillTemplate(paramValues, file, template.templ);
+      templateCtx.fillTemplate(paramValues, file, template.templ, template.dir);
     if (templateStatus) {
       var label = file.replace(/.*\/([^\/]+)$/, "$1");
       console.log("       " + label + ": " + templateStatus);

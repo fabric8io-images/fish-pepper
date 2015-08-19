@@ -22,17 +22,27 @@ exports.forEachTemplate = function(ctx, image, params, blocks, templFunc) {
 
 function parseTemplates(dir) {
   var templ_dir = dir + "/templates";
-  var templates = fs.readdirSync(templ_dir);
-
   var parsedTemplates = [];
-  templates.forEach(function (template) {
-    parsedTemplates.push({
-      "templ": dot.template(fs.readFileSync(templ_dir + "/" + template)),
-      "file":  template
+
+  (function recurseRead(sub) {
+    var files = fs.readdirSync(templ_dir + (sub ? "/" + sub : ""));
+    files.forEach(function (file) {
+      var path = sub ? sub + "/" + file : file;
+      if (fs.statSync(templ_dir + "/" + path).isDirectory()) {
+        recurseRead(path);
+      } else {
+        parsedTemplates.push({
+          "templ": dot.template(fs.readFileSync(templ_dir + "/" + path)),
+          "file":  path,
+          "dir": sub
+        });
+      }
     });
-  });
+  })();
+
   return parsedTemplates;
 }
+
 
 function createContext(root, image, params, templates, blocks) {
 
@@ -44,9 +54,12 @@ function createContext(root, image, params, templates, blocks) {
       templates.forEach(fn);
     },
 
-    fillTemplate: function (paramValues, templateFile, template) {
+    fillTemplate: function (paramValues, templateFile, template, dir) {
       var path = getPath(paramValues);
       ensureDir(path);
+      if (dir) {
+        ensureDir(path + "/" + dir);
+      }
       file = path + "/" + templateFile;
       var context = getTemplateContext(paramValues);
       var newContent = template(context).trim() + "\n";
