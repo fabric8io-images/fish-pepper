@@ -133,17 +133,32 @@ function createContext(root, image, params, templates, blocks) {
         return undefined;
       }
 
-      // Copy over files attached to block
-      var files = blocks[key].files || [];
-      files.forEach(function(file) {
-        var base = path.parse(file).base;
-        fs.writeFileSync(getPath(paramValues,base), fs.readFileSync(file));
-      });
+      var templateContext = getTemplateContext(paramValues);
+      // Add arguments variables to context: 0: name of the block | 1,2,3,... extra arguments used)
+      templateContext.blockArgs = arguments;
 
+      // Copy over files attached to block if changed
+      copyBlockFiles(key, templateContext, paramValues);
       return blocks[key].text ?
-        (dot.template(blocks[key].text))(getTemplateContext(paramValues)) :
+        (dot.template(blocks[key].text))(templateContext) :
         undefined;
     }
+  }
+
+  function copyBlockFiles(key, templateContext, paramValues) {
+    var files = blocks[key].files || [];
+    files.forEach(function (file) {
+      var base = path.parse(file).base;
+      var toCopy = fs.readFileSync(file);
+      var newContent = (dot.template(toCopy))(templateContext);
+      var targetFile = getPath(paramValues, base);
+      var oldContent = fs.existsSync(targetFile) ? fs.readFileSync(targetFile) : undefined;
+      if (!oldContent || oldContent != newContent) {
+        fs.writeFileSync(targetFile, newContent);
+        console.log("       " + key + "." + file.replace(/.*\/([^\/]+)$/, "$1") + ": " +
+                    (oldContent ? "NEW".yellow : "CHANGED".green));
+      }
+    });
   }
 
   function ensureDir(dir) {

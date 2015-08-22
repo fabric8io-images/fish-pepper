@@ -77,11 +77,9 @@ function fillTemplates(templateCtx, paramValues) {
     }
     changed = changed || templateStatus;
   });
-  if (!changed) {
-    console.log("       UNCHANGED".yellow);
-  } else {
-
-  }
+  //if (!changed) {
+  //  console.log("       UNCHANGED".yellow);
+  //}
 }
 
 // =======================================================================================
