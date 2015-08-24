@@ -38,13 +38,14 @@ function processImages(ctx, images) {
   createDockerFileDirs(ctx, images);
 
   // If desired create Docker images
-  if (ctx.options.build) {
+  if (ctx.commands.build) {
     buildImages(ctx, images);
   }
 }
 
-// ===============================================================================
+// == COMMMANDS ===========================================================================
 
+// "make"
 function createDockerFileDirs(ctx, images) {
   console.log("Creating Docker Builds\n".cyan);
 
@@ -52,51 +53,24 @@ function createDockerFileDirs(ctx, images) {
     console.log(image.dir.magenta);
     var blocks = blockLoader.load(ctx.root + "/blocks", ctx.root + "/" + image.dir + "/blocks");
     var config = image.config;
-    var params = extractParams(config, ctx.options);
+    var params = extractParams(image, ctx);
 
-    templateEngine.forEachTemplate(ctx, image, params, blocks, function(templateCtx, paramValues) {
-      fillTemplates(templateCtx, paramValues);
-    });
+    templateEngine.fillTemplates(ctx, image, params, blocks);
   });
 }
 
-function fillTemplates(templateCtx, paramValues) {
-  console.log("    " + paramValues.join(", ").green);
-  var changed = false;
-  templateCtx.forEachTemplate(function (template) {
-    var file = templateCtx.checkForMapping(template.file);
-    if (!file) {
-      // Skip any file flagged as being mapped but no mapping was found
-      return;
-    }
-    var templateStatus =
-      templateCtx.fillTemplate(paramValues, file, template.templ, template.dir);
-    if (templateStatus) {
-      var label = file.replace(/.*\/([^\/]+)$/, "$1");
-      console.log("       " + label + ": " + templateStatus);
-    }
-    changed = changed || templateStatus;
-  });
-  //if (!changed) {
-  //  console.log("       UNCHANGED".yellow);
-  //}
-}
-
-// =======================================================================================
-
+// "build"
 function buildImages(ctx, images) {
   console.log("\n\nBuilding Images\n".cyan);
 
   var docker = dockerBackend.create(ctx.options);
 
   images.forEach(function(image) {
-    var params = extractParams(image.config, ctx.options);
+    var params = extractParams(image, ctx);
     imageBuilder.build(ctx.root, docker, params, image, { nocache: ctx.options.nocache, debug: DEBUG });
   });
 }
-
 // ===================================================================================
-
 
 function getImages(ctx) {
   var imageNames;
@@ -113,8 +87,16 @@ function getImages(ctx) {
     imageNames = _.filter(allImageNames, function (image) {
       return _.contains(ctx.options.image, image);
     });
-  } else {
+  } else if (ctx.options.all) {
     imageNames = allImageNames;
+  } else {
+    var currentDir = process.cwd();
+    var imageMatch = currentDir.match("^" + ctx.root + "/([^/]+)");
+    if (imageMatch) {
+      imageNames = [ imageMatch[1] ]
+    } else {
+      imageNames = allImageNames;
+    }
   }
   return _.map(imageNames, function (name) {
     var config = getImageConfig(ctx, name);
@@ -142,13 +124,57 @@ function getImageConfig(ctx, image) {
 }
 
 // Return all params in the right order and the individual configuration per param
-function extractParams(config, opts) {
-  // TODO: Filter out params if requested from the commandline with paramFromOpts
+function extractParams(image, ctx) {
+  // TODO: Filter out param values from config if restricted by command line or directory location
+  var config = image.config;
+  var types = config.fpConfig('params').slice(0);
+  var opts = ctx.options ? ctx.options : { all: true };
+  var paramValues = extractFixedParamValues(opts,ctx.root + "/" + image.dir);
+  var paramConfigs = opts.experimental || paramValues ? config.config : removeExperimentalConfigs(config.config);
+  var reducedParamConfig = reduceConfig(types,paramConfigs,paramValues);
   return {
     // Copy objects
-    types:  config.fpConfig('params').slice(0),
-    config: _.extend({}, !opts || opts.experimental ? config.config : removeExperimentalConfigs(config.config))
+    types:  types,
+    config: reducedParamConfig
   };
+}
+
+function reduceConfig(types,config,paramValues) {
+  var ret = _.extend({},config);
+  if (paramValues) {
+    for (var i = 0; i < paramValues.length; i++) {
+      var type = types[i];
+      var param = paramValues[i];
+      if (!config[type][param]) {
+        throw new Error("No parameter value '" + param + "' defined for type " + type);
+      }
+      _.keys(config[type]).forEach(function(key) {
+        if (key != param) {
+          delete ret[type][key];
+        }
+      });
+    }
+  }
+  return ret;
+}
+
+function extractFixedParamValues(opts,topDir) {
+  // Include all for sured
+  if (opts.all) {
+    return undefined;
+  }
+  // Specified on command line
+  if (opts.param) {
+    return opts.param.split(/\s*,\s*/);
+  }
+  // Implicit determined by current working dir
+  var currentDir = process.cwd();
+  var paramRest = currentDir.match("^" + topDir + "/images/(.*?)/*$");
+  if (paramRest) {
+    return paramRest[1].split(/\//);
+  } else {
+    return undefined;
+  }
 }
 
 function removeExperimentalConfigs(config) {
@@ -164,16 +190,14 @@ function removeExperimentalConfigs(config) {
   return ret;
 }
 
-
-
 function setupContext() {
   var Getopt = require('node-getopt');
   var getopt = new Getopt([
     ['i', 'image=ARG+', 'Images to create (e.g. "tomcat")'],
-    ['p', 'param=ARG+', 'Params to use for the build. Should be a comma separate list, starting from top'],
-    ['b', 'build', 'Build image(s)'],
-    ['d', 'host', 'Docker hostname (default: localhost)'],
-    ['p', 'port', 'Docker port (default: 2375)'],
+    ['p', 'param=ARG', 'Params to use for the build. Should be a comma separate list, starting from top'],
+    ['a', 'all', 'Process all parameters images'],
+    ['c', 'connect', 'Docker URL (default: $DOCKER_HOST)'],
+    ['d', 'dir=ARG', 'Directory holding the image definitions'],
     ['n', 'nocache', 'Don\'t cache when building images'],
     ['e', 'experimental', 'Include images which are marked as experimental'],
     ['h', 'help', 'display this help']
@@ -181,9 +205,16 @@ function setupContext() {
 
   var opts = getopt.parseSystem();
 
+  // Get commands ...
+  var commands = {};
+  opts.argv.forEach(function(cmd) {
+    commands[cmd] = 1;
+  });
+
   var ctx = {};
   ctx.options = opts.options || {};
-  ctx.root = getRootDir(opts.argv[0]);
+  ctx.commands = commands;
+  ctx.root = getRootDir(ctx.options.dir);
   ctx.config = ctx.root ? readConfig(ctx.root, "fish-pepper") : {};
   if (ctx.options.help) {
     getopt.setHelp(createHelp(ctx));
@@ -273,7 +304,7 @@ function createHelp(ctx) {
       var config = image.config;
       var indent = "                                                   ".substring(0,image.dir.length + 5);
       var prefix = "   " + image.dir + ": ";
-      util.foreachParamValue(extractParams(config),function(values) {
+      util.foreachParamValue(extractParams(image),function(values) {
         help += prefix + values.join(", ") + "\n";
         prefix = indent;
       });

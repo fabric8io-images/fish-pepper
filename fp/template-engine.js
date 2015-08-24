@@ -11,100 +11,62 @@ var util = require("./util");
 var mkdirp = require('mkdirp');
 var path = require('path');
 
-exports.forEachTemplate = function(ctx, image, params, blocks, templFunc) {
+exports.fillTemplates = function (ctx, image, params, blocks) {
   var dir = ctx.root + "/" + image.dir;
 
-  var templateContext = createContext(ctx.root, image, params, parseTemplates(dir), blocks);
-  util.foreachParamValue(params, function(paramValues) {
-    templFunc(templateContext, paramValues);
+  var fillFunc = createFillFunction(parseTemplates(dir));
+  util.foreachParamValue(params, function (paramValues) {
+    fillFunc(paramValues);
   });
-};
-
-function parseTemplates(dir) {
-  var templ_dir = dir + "/templates";
-  var parsedTemplates = [];
-
-  (function recurseRead(sub) {
-    var files = fs.readdirSync(templ_dir + (sub ? "/" + sub : ""));
-    files.forEach(function (file) {
-      var path = sub ? sub + "/" + file : file;
-      if (fs.statSync(templ_dir + "/" + path).isDirectory()) {
-        recurseRead(path);
-      } else {
-        parsedTemplates.push({
-          "templ": dot.template(fs.readFileSync(templ_dir + "/" + path)),
-          "file":  path,
-          "dir": sub
-        });
-      }
-    });
-  })();
-
-  return parsedTemplates;
-}
-
-
-function createContext(root, image, params, templates, blocks) {
-
-  return {
-
-    getParamConfigFor: getParamConfigFor,
-
-    forEachTemplate: function (fn) {
-      templates.forEach(fn);
-    },
-
-    fillTemplate: function (paramValues, templateFile, template, dir) {
-      var path = getPath(paramValues);
-      ensureDir(path);
-      if (dir) {
-        ensureDir(path + "/" + dir);
-      }
-      file = path + "/" + templateFile;
-      var context = getTemplateContext(paramValues);
-      var newContent = template(context).trim() + "\n";
-      if (!newContent.length) {
-        return "SKIPPED".grey;
-      } else {
-        var exists = fs.existsSync(file);
-        var oldContent = exists ? fs.readFileSync(file, "utf8") : undefined;
-        if (!oldContent || newContent.trim() !== oldContent.trim()) {
-          fs.writeFileSync(file, newContent, {"encoding": "utf8"});
-          return exists ? "CHANGED".green : "NEW".yellow;
-        }
-      }
-      return undefined;
-    },
-
-    checkForMapping: function (file) {
-      if (/^__.*$/.test(file)) {
-        var mapping = undefined;
-        params.types.forEach(function (param) {
-          var mappings = getParamConfigFor(param)["mappings"];
-          if (!mappings) {
-            mappings = image.config.config["default"].mappings;
-          }
-          if (mappings) {
-            mapping = mappings[file];
-          }
-        });
-        return mapping;
-      } else {
-        return file;
-      }
-    }
-  };
 
   // ===========================================================================================
   // Private methods
 
+  function parseTemplates(dir) {
+    var templ_dir = dir + "/templates";
+    var parsedTemplates = [];
+
+    (function recurseRead(sub) {
+      var files = fs.readdirSync(templ_dir + (sub ? "/" + sub : ""));
+      files.forEach(function (file) {
+        var path = sub ? sub + "/" + file : file;
+        if (fs.statSync(templ_dir + "/" + path).isDirectory()) {
+          recurseRead(path);
+        } else {
+          parsedTemplates.push({
+            "templ": dot.template(fs.readFileSync(templ_dir + "/" + path)),
+            "file":  path,
+            "dir":   sub
+          });
+        }
+      });
+    })();
+
+    return parsedTemplates;
+  }
+
+
+  function createFillFunction(templates) {
+    return function (paramValues) {
+      console.log("    " + paramValues.join(", ").green);
+      templates.forEach(function (template) {
+        var file = checkForMapping(template.file);
+        if (!file) {
+          // Skip any file flagged as being mapped but no mapping was found
+          return;
+        }
+        fillTemplate(paramValues, file, template.templ, template.dir);
+      });
+    }
+  }
+
   function getParamConfigFor(type, val) {
-      var c = image.config.config[type] || {};
-      return c[val] || {};
+    var c = image.config.config[type] || {};
+    return c[val] || {};
   }
 
   function getPath(values, file) {
-      return root + "/" + image.dir + "/images/" + values.join("/") + (file ? "/" + file : "");
+    return ctx.root + "/" + image.dir + "/images/" + values.join("/") + (file ? "/" + file : "");
   }
 
   function getTemplateContext(paramValues) {
@@ -125,6 +87,45 @@ function createContext(root, image, params, templates, blocks) {
         "param":  paramValMap,
         "config": _.extend({}, image.config.config['default'], paramConfig)
       });
+  }
+
+  function fillTemplate(paramValues, templateFile, template, dir) {
+    var path = getPath(paramValues);
+    ensureDir(path);
+    if (dir) {
+      ensureDir(path + "/" + dir);
+    }
+    file = path + "/" + templateFile;
+    var context = getTemplateContext(paramValues);
+    var newContent = template(context).trim() + "\n";
+    if (!newContent.length) {
+      logFile(templateFile, "SKIPPED".grey);
+    } else {
+      var exists = fs.existsSync(file);
+      var oldContent = exists ? fs.readFileSync(file, "utf8") : undefined;
+      if (!oldContent || newContent.trim() !== oldContent.trim()) {
+        fs.writeFileSync(file, newContent, {"encoding": "utf8"});
+        logFile(templateFile, exists ? "CHANGED".green : "NEW".yellow);
+      }
+    }
+  }
+
+  function checkForMapping(file) {
+    if (/^__.*$/.test(file)) {
+      var mapping = undefined;
+      params.types.forEach(function (param) {
+        var mappings = getParamConfigFor(param)["mappings"];
+        if (!mappings) {
+          mappings = image.config.config["default"].mappings;
+        }
+        if (mappings) {
+          mapping = mappings[file];
+        }
+      });
+      return mapping;
+    } else {
+      return file;
+    }
   }
 
   function createBlockFunction(paramValues) {
@@ -155,8 +156,7 @@ function createContext(root, image, params, templates, blocks) {
       var oldContent = fs.existsSync(targetFile) ? fs.readFileSync(targetFile) : undefined;
       if (!oldContent || oldContent != newContent) {
         fs.writeFileSync(targetFile, newContent);
-        console.log("       " + key + "." + file.replace(/.*\/([^\/]+)$/, "$1") + ": " +
-                    (oldContent ? "NEW".yellow : "CHANGED".green));
+        logFile(file, oldContent ? "NEW".yellow : "CHANGED".green, key);
       }
     });
   }
@@ -169,9 +169,11 @@ function createContext(root, image, params, templates, blocks) {
       throw new Error(dir + " is not a directory");
     }
   }
+
+  function logFile(file, txt, prefix) {
+    console.log("       " + (prefix ? prefix + "." : "") +
+                file.replace(/.*\/([^\/]+)$/, "$1") + ": " + txt);
+  }
 }
-
-
-
 
 

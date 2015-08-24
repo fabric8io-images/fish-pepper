@@ -7,27 +7,17 @@ exports.create = function(options) {
 };
 
 function getDockerConnectionsParams(options) {
-  if (options.host) {
-    return addSslIfNeeded({
-      "host": options.host,
-      "port": options.port || 2375
-    }, options);
-  } else if (process.env.DOCKER_HOST) {
-    var parts = process.env.DOCKER_HOST.match(/^tcp:\/\/(.+?)\:?(\d+)?$/i);
-    if (parts !== null) {
-      return addSslIfNeeded({
-        "host": parts[1],
-        "port": parts[2] || 2375
-      }, options);
-    } else {
-      return {
-        "socketPath": process.env.DOCKER_HOST
-      };
-    }
-  } else {
+  var dockerUrl = options.connect || process.env.DOCKER_HOST;
+  if (!dockerUrl) {
     return {
-        "socketPath": "/var/run/docker.sock"
+      "socketPath": "/var/run/docker.sock"
     };
+  }
+  var parts = dockerUrl.match(/^([^:]+):\/\/(.+?):?(\d+)?$/i);
+  if (parts[1] == "unix") {
+      return { "socketPath": dockerUrl };
+  } else {
+    return addSslIfNeeded({"host": parts[2], "port": parts[3] || 2375}, options);
   }
 }
 
