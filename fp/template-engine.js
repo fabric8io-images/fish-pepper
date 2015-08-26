@@ -75,7 +75,7 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
     for (var i = 0; i < params.types.length; i++) {
       var type = params.types[i];
       var val = paramValues[i];
-      paramConfig[type] = params.config[type][val];
+      paramConfig[type] = _.extend({},params.config[type].default || {},params.config[type][val]);
       paramValMap[type] = val;
     }
 

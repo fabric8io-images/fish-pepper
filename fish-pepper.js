@@ -52,7 +52,6 @@ function createDockerFileDirs(ctx, images) {
   images.forEach(function (image) {
     console.log(image.dir.magenta);
     var blocks = blockLoader.load(ctx.root + "/blocks", ctx.root + "/" + image.dir + "/blocks");
-    var config = image.config;
     var params = extractParams(image, ctx);
 
     templateEngine.fillTemplates(ctx, image, params, blocks);
@@ -125,12 +124,13 @@ function getImageConfig(ctx, image) {
 
 // Return all params in the right order and the individual configuration per param
 function extractParams(image, ctx) {
-  // TODO: Filter out param values from config if restricted by command line or directory location
   var config = image.config;
   var types = config.fpConfig('params').slice(0);
   var opts = ctx.options ? ctx.options : { all: true };
   var paramValues = extractFixedParamValues(opts,ctx.root + "/" + image.dir);
   var paramConfigs = opts.experimental || paramValues ? config.config : removeExperimentalConfigs(config.config);
+
+  // Filter out configuration which are not selected by the user
   var reducedParamConfig = reduceConfig(types,paramConfigs,paramValues);
   return {
     // Copy objects
@@ -158,8 +158,11 @@ function reduceConfig(types,config,paramValues) {
   return ret;
 }
 
+// Return a set of parameter values (in the right order) if the user
+// select parameters either explicitly or implicitly. Or undefined if no
+// parameter restriction applies.
 function extractFixedParamValues(opts,topDir) {
-  // Include all for sured
+  // Include all for sure
   if (opts.all) {
     return undefined;
   }
@@ -169,7 +172,7 @@ function extractFixedParamValues(opts,topDir) {
   }
   // Implicit determined by current working dir
   var currentDir = process.cwd();
-  var paramRest = currentDir.match("^" + topDir + "/images/(.*?)/*$");
+  var paramRest = currentDir.match(new RegExp("^" + topDir + "/images/(.*?)/*$"));
   if (paramRest) {
     return paramRest[1].split(/\//);
   } else {

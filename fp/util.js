@@ -8,6 +8,9 @@ exports.foreachParamValue = function(params, callback) {
       var type = types.shift();
       var paramValues = Object.keys(params.config[type]).sort();
       paramValues.forEach(function (paramValue) {
+        if (paramValue === "default") {
+          return;
+        }
         var valuesClone = values.slice(0);
         valuesClone.push(paramValue);
         collect(types.slice(0), valuesClone);
