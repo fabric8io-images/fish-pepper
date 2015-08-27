@@ -25,7 +25,7 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
   function parseTemplates(dir) {
     var templ_dir = dir + "/templates";
     var parsedTemplates = [];
-
+    var mappedFileTemplates = [];
     (function recurseRead(sub) {
       var files = fs.readdirSync(templ_dir + (sub ? "/" + sub : ""));
       files.forEach(function (file) {
@@ -33,16 +33,18 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
         if (fs.statSync(templ_dir + "/" + path).isDirectory()) {
           recurseRead(path);
         } else {
-          parsedTemplates.push({
+          var template = {
             "templ": dot.template(fs.readFileSync(templ_dir + "/" + path)),
             "file":  path,
             "dir":   sub
-          });
+          };
+          isMappedFile(file) ? mappedFileTemplates.push(template) : parsedTemplates.push(template);
         }
       });
     })();
 
-    return parsedTemplates;
+    // Mapped files at the end so that the can overwrite plain files which act as default
+    return _.flatten([parsedTemplates, mappedFileTemplates]);
   }
 
 
@@ -50,7 +52,7 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
     return function (paramValues) {
       console.log("    " + paramValues.join(", ").green);
       templates.forEach(function (template) {
-        var file = checkForMapping(template.file);
+        var file = checkForMapping(paramValues,template.file);
         if (!file) {
           // Skip any file flagged as being mapped but no mapping was found
           return;
@@ -58,11 +60,6 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
         fillTemplate(paramValues, file, template.templ, template.dir);
       });
     }
-  }
-
-  function getParamConfigFor(type, val) {
-    var c = image.config.config[type] || {};
-    return c[val] || {};
   }
 
   function getPath(values, file) {
@@ -75,7 +72,7 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
     for (var i = 0; i < params.types.length; i++) {
       var type = params.types[i];
       var val = paramValues[i];
-      paramConfig[type] = _.extend({},params.config[type].default || {},params.config[type][val]);
+      paramConfig[type] = _.extend({},params.config[type].default,params.config[type][val]);
       paramValMap[type] = val;
     }
 
@@ -85,7 +82,7 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
       {
         "block":  createBlockFunction(paramValues),
         "param":  paramValMap,
-        "config": _.extend({}, image.config.config['default'], paramConfig)
+        "config": _.extend({}, image.config.config.default, paramConfig)
       });
   }
 
@@ -95,7 +92,7 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
     if (dir) {
       ensureDir(path + "/" + dir);
     }
-    file = path + "/" + templateFile;
+    var file = path + "/" + templateFile;
     var context = getTemplateContext(paramValues);
     var newContent = template(context).trim() + "\n";
     if (!newContent.length) {
@@ -110,22 +107,30 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
     }
   }
 
-  function checkForMapping(file) {
-    if (/^__.*$/.test(file)) {
-      var mapping = undefined;
-      params.types.forEach(function (param) {
-        var mappings = getParamConfigFor(param)["mappings"];
-        if (!mappings) {
-          mappings = image.config.config["default"].mappings;
+  // Check for mappings on various level, along the parameter order
+  function checkForMapping(paramValues,file) {
+    if (isMappedFile(file)) {
+      for (var i = 0; i < params.types.length; i++) {
+        var paramConfig = image.config.config[params.types[i]];
+        var key = paramValues[i];
+        if (paramConfig[key]) {
+          var fpConfig = paramConfig[key]["fish-pepper"];
+          if (fpConfig) {
+            var mappings = fpConfig.mappings;
+            if (mappings && mappings[file]) {
+              return mappings[file];
+            }
+          }
         }
-        if (mappings) {
-          mapping = mappings[file];
-        }
-      });
-      return mapping;
+      }
+      return undefined;
     } else {
       return file;
     }
+  }
+
+  function isMappedFile(file) {
+    return /^__.*$/.test(file);
   }
 
   function createBlockFunction(paramValues) {
@@ -174,6 +179,6 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
     console.log("       " + (prefix ? prefix + "." : "") +
                 file.replace(/.*\/([^\/]+)$/, "$1") + ": " + txt);
   }
-}
+};
 
 

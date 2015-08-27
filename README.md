@@ -333,6 +333,10 @@ of the build files generation.
 * for different parameter value different files can be copied with the
   same name into docker build dir
 
+### Defaults
+
+*to be done*
+
 ### Image naming
 
 When using the build mode with `-b`, image names are calculated from

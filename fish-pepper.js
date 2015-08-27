@@ -126,9 +126,13 @@ function getImageConfig(ctx, image) {
 function extractParams(image, ctx) {
   var config = image.config;
   var types = config.fpConfig('params').slice(0);
-  var opts = ctx.options ? ctx.options : { all: true };
-  var paramValues = extractFixedParamValues(opts,ctx.root + "/" + image.dir);
-  var paramConfigs = opts.experimental || paramValues ? config.config : removeExperimentalConfigs(config.config);
+  var paramValues = undefined;
+  var paramConfigs = config.config;
+  if (ctx) {
+    var opts = ctx.options ? ctx.options : {all: true};
+    paramValues = extractFixedParamValues(opts, ctx.root + "/" + image.dir);
+    paramConfigs = opts.experimental || paramValues ? config.config : removeExperimentalConfigs(config.config);
+  }
 
   // Filter out configuration which are not selected by the user
   var reducedParamConfig = reduceConfig(types,paramConfigs,paramValues);
@@ -149,7 +153,7 @@ function reduceConfig(types,config,paramValues) {
         throw new Error("No parameter value '" + param + "' defined for type " + type);
       }
       _.keys(config[type]).forEach(function(key) {
-        if (key != param) {
+        if (key != param && key != "default") {
           delete ret[type][key];
         }
       });
