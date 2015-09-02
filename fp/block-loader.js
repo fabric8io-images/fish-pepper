@@ -2,47 +2,13 @@ var fs = require('fs');
 var _ = require('underscore');
 var yaml = require('js-yaml');
 
-exports.load = function() {
+exports.loadLocal = function () {
   var blocks = {};
 
-  // Check files
-  Array.prototype.slice.call(arguments).forEach(function(path) {
-    [".txt",".yml",".yaml"].forEach(function(ext) {
-      if (fs.existsSync(path + ext)) {
-        if (ext === ".txt") {
-          blocks = _.extend(blocks, readBlockAsText(path + ext));
-        } else if (ext === ".yml" || ext === ".yaml") {
-          blocks = _.extend(blocks, readBlockAsYaml(path + ext));
-        }
-      }
-    });
-
+  Array.prototype.slice.call(arguments).forEach(function (path) {
     // Check directory, filename (without extension) is used as block name
     if (fs.existsSync(path) && fs.statSync(path).isDirectory()) {
-      var files = fs.readdirSync(path);
-      files.forEach(function (file) {
-        var stat = fs.statSync(path + "/" + file);
-        var name = file.replace(/\..*$/, "");
-        if (stat.isFile()) {
-          blocks[name] = { text: fs.readFileSync(path + "/" + file, "utf8") };
-        } else if (stat.isDirectory()) {
-          // Within a directory we are looking for a file block.<ext> which is the textual block
-          // All other files will be copied over into the build directory (with template substitution)
-          var files = fs.readdirSync(path + "/" + file);
-          var block = {
-            files : []
-          };
-          files.forEach(function(subFile) {
-            var subPath = path + "/" + file + "/" + subFile;
-            if (subFile.match(/^block\./)) {
-              block["text"] = fs.readFileSync(subPath, "utf8");
-            } else {
-              block["files"].push(subPath);
-            }
-          });
-          blocks[name] = block;
-        }
-      });
+      blocks = _.extend(blocks, readBlockDir(path));
     }
   });
 
@@ -51,31 +17,62 @@ exports.load = function() {
 
 // =========================================================================================
 
-function readBlockAsText(path) {
+function readBlockDir(path) {
   var blocks = {};
-  var text = fs.readFileSync(path, "utf8");
-  var lines = text.split(/\r?\n/);
-  var block = undefined;
-  var buffer = "";
-  lines.forEach(function (line) {
-    var name = line.match(/^===*\s*([^\s]+)?/);
-    if (name) {
-      if (!name[1]) { // end-of-fragment
-        blocks[block] = { text: buffer };
-        buffer = "";
-      }
-      block = name[1];
-    } else {
-      if (block) {
-        buffer += line + "\n";
-      }
+
+  var files = fs.readdirSync(path);
+  files.forEach(function (entry) {
+    var stat = fs.statSync(path + "/" + entry);
+    var name = extractBasename(entry);
+    if (stat.isFile()) {
+      // "Simple Blocks"
+      // * Plain template fragment
+      // * No sub-snippet
+      // * No files
+      blocks[name] = {
+        text: {
+          default: fs.readFileSync(path + "/" + entry, "utf8")
+        }
+      };
+    } else if (stat.isDirectory()) {
+      // "Extended Blocks":
+      // * A "block.<ext>" which is the default textual block used as fragment if no subtype is given.
+      //   There can be only one.
+      // * Any other files are sub snippets which can be referenced by their basename (ext doesn't matter)
+      // * A directory "files/" hold all files which should copied over into the build directory
+      //   (with template substitution)
+      // * Any other directory is ignored
+      var subEntries = fs.readdirSync(path + "/" + entry);
+      var block = {
+        text:  {},
+        files: []
+      };
+      subEntries.forEach(function (subEntry) {
+        var subPath = path + "/" + entry + "/" + subEntry;
+        var subStat = fs.statSync(subPath);
+        if (subStat.isFile()) {
+          var text = fs.readFileSync(subPath, "utf8");
+          if (subEntry.match(/^block\./)) {
+            if (block.text.default) {
+              throw Error("Only one default block entry starting with 'block.' is allowed in " + path + "/" + entry);
+            }
+            block.text.default = text
+          } else {
+            block.text[extractBasename(subEntry)] = text;
+          }
+        } else if (subStat.isDirectory() && subEntry == "files") {
+          fs.readdirSync(subPath).forEach(function (f) {
+            block.files.push(subPath + "/" + f);
+          });
+        }
+      });
+      blocks[name] = block;
     }
   });
   return blocks;
 }
 
-function readBlockAsYaml(path) {
-  return _.mapObject(yaml.safeLoad(fs.readFileSync(path, "utf8")),function(val) {
-    return { text: val };
-  });
+// Check files
+function extractBasename(file) {
+  return file.replace(/\..*?$/, "");
 }

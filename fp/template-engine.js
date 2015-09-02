@@ -141,12 +141,23 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
 
       var templateContext = getTemplateContext(paramValues);
       // Add arguments variables to context: 0: name of the block | 1,2,3,... extra arguments used)
-      templateContext.blockArgs = arguments;
+      var subSnippet, optsIdx;
+      if (arguments[1] && typeof arguments[1] == "string") {
+        subSnippet = arguments[1];
+        optsIdx = 2;
+      } else {
+        subSnippet = "default";
+        optsIdx = 1;
+      }
+      var opts = arguments[optsIdx] && typeof arguments[optsIdx] == "object" ? arguments[optsIdx] : {};
+      templateContext.blockOpts = opts;
 
       // Copy over files attached to block if changed
-      copyBlockFiles(key, templateContext, paramValues);
-      return blocks[key].text ?
-        (dot.template(blocks[key].text))(templateContext) :
+      if (!opts["fp-no-files"]) {
+        copyBlockFiles(key, templateContext, paramValues);
+      }
+      return blocks[key]["text"] && blocks[key]["text"][subSnippet] ?
+        (dot.template(blocks[key]["text"][subSnippet]))(templateContext) :
         undefined;
     }
   }

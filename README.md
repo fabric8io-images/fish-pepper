@@ -1,13 +1,14 @@
 ## fish-pepper - Spicing up the ocean
 
-`fish-pepper` is a build system for Docker images. It allows you to create 
-many similar Docker builds based on templates. This allows for *compositions* of 
-building blocks in addition to the usual *inheritance* with `FROM`. 
+`fish-pepper` is a multi-dimensional docker build generator.  It
+allows you to create many similar Docker builds with the help of  
+templates. It allows for *compositions* of building blocks in
+addition to the usual Docker *inheritance* from base images. 
 
-For example, consider a **Java base image**: Some users might
-require Java 7, some want Java 8. For running Miroservices a JRE might
-be sufficient in other use cases you need a full JDK. Theses four
-variants are all quite similar with respect to documentation,
+Let's have a look at an example for a **Java base image**: Some users
+might require Java 7, some want Java 8. For running Microservices a
+JRE might be sufficient. In other use cases you need a full JDK. Theses
+four variants are all quite similar with respect to documentation,
 Dockerfiles and support files like startup scripts.  Copy-and-paste
 might work but is not a good solution considering the image evolution
 over time or introducing even more parameters.
@@ -25,30 +26,38 @@ as automated Dockerhub builds when checked in into git.
 ### Synopsis
 
 ````
-Usage: fish-pepper [OPTION] <dir>
+Usage: fish-pepper [OPTION] <command>
 
-Multidimensional Docker Build Generator 
+Multidimensional Docker Build Generator
 
   -i, --image=ARG+    Images to create (e.g. "tomcat")
-  -p, --param=ARG+    Params to use for the build. Should be a comma separate list, starting from top
-  -b, --build         Build image(s)
-  -d, --host          Docker hostname (default: localhost)
-  -p, --port          Docker port (default: 2375)
+  -p, --param=ARG     Params to use for the build. Should be a comma separate list, starting from top
+  -a, --all           Process all parameters images
+  -c, --connect       Docker URL (default: $DOCKER_HOST)
+  -d, --dir=ARG       Directory holding the image definitions
   -n, --nocache       Don't cache when building images
   -e, --experimental  Include images which are marked as experimental
   -h, --help          display this help
 
+The argument is interpreted as the command to perform. The following commands are supported:
+    make  -- Create Docker build files from templates
+    build -- Build Docker images from generated build files. Implies 'make'
+
+The configuration is taken from the file "fish-pepper.json" or "fish-pepper.yml" from the current directory
+or from the directory provided with the option '-d'. Alternatively the first parent directory
+containing one of the configuration files is used.
+
 Examples:
 
-  # Find a 'fish-pepper.yml' in this or a parent directory and use
-  # the images found there to create multiple Docker build directories.
-  fish-pepper
+   # Find a 'fish-pepper.yml' in this or a parent directory and use
+   # the images found there to create multiple Docker build directories.
+   fish-pepper
 
-  # Create all image families found in "example" directory
-  fish-pepper example
+   # Create all image families found in "example" directory
+   fish-pepper -d example
 
-  # Create only the image family "java" in "example" and also build the images
-  fish-pepper example -i java -b
+   # Create only the image family "java" in "example" and build the images, too
+   fish-pepper -d example -i java build
 ````
 
 ### Options
@@ -321,10 +330,126 @@ of the build files generation.
 
 ### Blocks
 
-*to be done*
+One of the major features of fish-peppers are reusable
+**blocks**. These are reusable components which can be parameterized
+like any other template. A block itself can consist of two different
+kinds:
 
-* blocks as reusable components
-* can be specified in different ways
+* **template snippets** which will be inserted as a template fragment
+  where referenced from within a template
+* **files** which are copied over into the Docker build direct.
+
+These blocks can be defined locally or referenced remotely and a
+referenced by a unique ame. It is easy to share blocks across multiple
+image deinitions. The following two sections explain how to use blocks
+and how to create blocks.
+
+#### Block usage
+
+Defined Blocks can be referenced from within templates with a function
+on the teplate context. For example,
+
+```javascript
+{{= fp.block('version-info') }}
+```
+
+will refer to a block named "version-info". This block is processed as
+a template which receives the same context as the calling
+template. The processed content is the insert in place where the
+method is called.
+
+Sub-snippets can be declared with an optional second argument:
+
+```javascript
+{{= fp.block('version-info','java') }}
+```
+
+An (optional) third argument specifies additional processing
+instructions and additional arguments for the blocks as an JavaScript
+object: 
+
+```javascript
+{{= fp.block('version-info','java',{ "no-files": true, "copy-dir" :
+"/usr/local/sti" }) }}
+```
+
+Processing instructions all start with `fp-`. The followin
+instructions are support:
+
+* `fp-no-files` : Don't copy over any files into the build directory
+
+#### Block definitions
+
+Blocks are stored in dedicated `blocks/` directories. These will be
+looked up in multiple locations:
+
+* Top-level `blocks/` directory where you global `fish-pepper.yml` resides. The blocks
+  defined here are available across all defined images.
+* `blocks/` directory on the image level where `images.yml` is located.
+* The location referenced in the `blocks:` sections in
+  `fish-pepper.yml`. 
+
+There are two block variants.
+
+##### Simple blocks
+
+Simple blocks are files within the blocks directory. They can have an
+arbitrary file extension which should match the content. The name
+before the extension defines the block name. E.g. a file
+`version-info.md` in on of the `blocks/` directories or in one of the
+locations referenced in the configuration will defined a block named
+"version-info" (and is probably written in markdown). This block can
+easily be referenced from within a template with `{{=
+fp.block('version-info') }}`. The text itself is a template, too and
+is processed before inserted. 
+
+The block itself can reference the `fp` context object as described in
+[Templates](#templates). In addition is access to extra information
+which is available only for this block. This information is available
+as an object via the property `fp.blockContext` and has the following
+properties:
+
+* `name` : Name of the block
+* `subname` : Sub-snippet name (which is empty for simple blocks)
+* `opts` : Extra option given a third argument to the block call
+
+##### Extended blocks
+
+Extended blocks consist of multiple files which are stored within a
+directory in the blocks location. The name of the directory is also
+the block name. Any file within this directory defines a
+sub-snippet. The base filename of the sub snippets are the name of
+the sub-snippets, the extension can be anything. This directory can
+also contain a directory `fp-files` which holds files which should be
+copied over into a Docker build directory. This directory can hold
+other directories, which are deeply copied.
+
+For example consider the following setup:
+
+```
+
+blocks/
+  |
+  +-- run-sh/
+       |  
+       +-- run-commands.dck
+       +-- readme.md
+       +-- fp-files
+               |
+               +-- run.sh
+
+```
+
+This defines a block named `run-sh` with the template snippets
+`run-commands.dck` and `readme.md`. The former holds the ADD command
+to put into the Dockerfile via `{{=
+fp.block('run-sh','commands.dck')}}`. This will also copy over all
+files in `fp-files` directory, in this case `run.sh`. Alls files
+copied are also processed as templates. The `readme.md` contains the usage
+instructions which can be included in the README template with `{{=
+fp.block('run-sh','readme.md',{ 'fp-no-files' : true }) }}`. The third
+argument to this call indicates that no files should be copied in
+this case. 
 
 ### File mappings
 

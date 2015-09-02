@@ -1,9 +1,0 @@
----
-# Blocks hold reusable text parts which also contain contain template variables
-
-# Footer used in README
-readme-footer: |
-  * Java Version: **{{= fp.config.version.fullVersion}}** (base image: *{{= fp.config.version.java}}*)
-  * Jolokia Version: **{{= fp.jolokiaVersion}}**
-  * Jolokia Port: **8778** 
-

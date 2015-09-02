@@ -51,7 +51,7 @@ function createDockerFileDirs(ctx, images) {
 
   images.forEach(function (image) {
     console.log(image.dir.magenta);
-    var blocks = blockLoader.load(ctx.root + "/blocks", ctx.root + "/" + image.dir + "/blocks");
+    var blocks = blockLoader.loadLocal(ctx.root + "/blocks", ctx.root + "/" + image.dir + "/blocks");
     var params = extractParams(image, ctx);
 
     templateEngine.fillTemplates(ctx, image, params, blocks);
@@ -278,15 +278,19 @@ function findConfig(dir, file) {
 
 function createHelp(ctx) {
   var help =
-    "Usage: fish-pepper [OPTION] \<dir\>\n" +
+    "Usage: fish-pepper [OPTION] \<command\>\n" +
     "\n" +
     "Multidimensional Docker Build Generator\n" +
     "\n" +
     "[[OPTIONS]]\n" +
     "\n" +
-    "An extra argument is interpreted as directory which contains the top-level\n" +
-    "\"fish-pepper.json\" or \"fish-pepper.yml\" config. If not given the current or the first parent directory\n" +
-    "containing the configuration is used\n" +
+    "The argument is interpreted as the command to perform. The following commands are supported:\n" +
+    "    make  -- Create Docker build files from templates\n" +
+    "    build -- Build Docker images from generated build files. Implies 'make'\n" +
+    "\n" +
+    "The configuration is taken from the file \"fish-pepper.json\" or \"fish-pepper.yml\" from the current directory\n" +
+    "or from the directory provided with the option '-d'. Alternatively the first parent directory\n" +
+    "containing one of the configuration files is used.\n" +
     "\n" +
     "Examples:\n" +
     "\n" +
@@ -295,12 +299,12 @@ function createHelp(ctx) {
     "   fish-pepper\n" +
     "\n" +
     "   # Create all image families found in \"example\" directory\n" +
-    "   fish-pepper example\n" +
+    "   fish-pepper -d example\n" +
     "\n" +
-    "   # Create only the image family \"java\" in \"example\" and build the images\n" +
-    "   fish-pepper example -i java -b\n" +
+    "   # Create only the image family \"java\" in \"example\" and build the images, too\n" +
+    "   fish-pepper -d example -i java build\n" +
     "\n" +
-    "Please refer to http://fish-pepper.org for a full reference manual as well as tutorials\n" +
+    "Please refer to https://github.com/rhuss/fish-pepper for further documentation.\n" +
     "\n";
   var images = getImages(ctx);
   if (images) {
