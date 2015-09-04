@@ -22,6 +22,8 @@
     "node-getopt": "*",
     "dockerode": "*",
     "js-yaml": "*",
-    "mkdirp": "*"
+    "mkdirp": "*",
+    "nodegit": "*",
+    "fibers": "*"
   }
 }

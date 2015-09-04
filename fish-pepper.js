@@ -20,16 +20,21 @@ var util = require('./fp/util');
 var DEBUG = false;
 
 (function () {
-  var ctx = setupContext();
 
-  // All supported servers which must be present as a sub-directory
-  var images = getImages(ctx);
-  if (!images) {
-    console.log("No images found.".yellow);
-    process.exit(0);
+  try {
+    var ctx = setupContext();
+
+    // All supported servers which must be present as a sub-directory
+    var images = getImages(ctx);
+    if (!images) {
+      console.log("No images found.".yellow);
+      process.exit(0);
+    }
+    processImages(ctx, images)
+  } catch (e) {
+    console.log(e.stack);
   }
-  processImages(ctx, images)
-})();
+}).future()();
 
 // ===============================================================================
 
@@ -51,10 +56,10 @@ function createDockerFileDirs(ctx, images) {
 
   images.forEach(function (image) {
     console.log(image.dir.magenta);
-    var blocks = blockLoader.loadLocal(ctx.root + "/blocks", ctx.root + "/" + image.dir + "/blocks");
+    var blocks = blockLoader.loadLocal(ctx.root + "/" + image.dir + "/blocks");
     var params = extractParams(image, ctx);
 
-    templateEngine.fillTemplates(ctx, image, params, blocks);
+    templateEngine.fillTemplates(ctx, image, params, _.extend(blocks,ctx.blocks));
   });
 }
 
@@ -222,7 +227,15 @@ function setupContext() {
   ctx.options = opts.options || {};
   ctx.commands = commands;
   ctx.root = getRootDir(ctx.options.dir);
-  ctx.config = ctx.root ? readConfig(ctx.root, "fish-pepper") : {};
+  if (ctx.root) {
+    ctx.config = readConfig(ctx.root, "fish-pepper");
+    ctx.blocks = _.extend(
+      blockLoader.loadRemote(ctx.root,ctx.config.blocks),
+      blockLoader.loadLocal(ctx.root + "/blocks"));
+  } else {
+    ctx.config = {};
+    ctx.blocks = {};
+  }
   if (ctx.options.help) {
     getopt.setHelp(createHelp(ctx));
     getopt.showHelp();

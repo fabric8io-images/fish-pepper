@@ -1,19 +1,65 @@
 var fs = require('fs');
 var _ = require('underscore');
 var yaml = require('js-yaml');
+var Git = require('nodegit');
+var Future = require("fibers/future");
+var util = require('./util');
 
-exports.loadLocal = function () {
-  var blocks = {};
-
+exports.loadLocal = function() {
+  var ret = {};
   Array.prototype.slice.call(arguments).forEach(function (path) {
-    // Check directory, filename (without extension) is used as block name
     if (fs.existsSync(path) && fs.statSync(path).isDirectory()) {
-      blocks = _.extend(blocks, readBlockDir(path));
+      ret = _.extend(ret, readBlockDir(path));
     }
   });
-
-  return blocks;
+  return ret;
 };
+
+exports.loadRemote = function(root,blockDefs) {
+  var ret = {};
+    blockDefs.forEach(function (def) {
+      if (def.type == "git") {
+        var future = new Future();
+        readBlocksFromGit(root, def).then(function(blocks) {
+          future.return(blocks)
+        },function(err) {
+          future.throw(err);
+        });
+        _.extend(ret,future.wait());
+      }
+    });
+  return ret;
+};
+
+function readBlocksFromGit(root,def) {
+  var name = (def.url.match(/.*\/([^/]+?)(?:\..*)?$/))[1];
+  var base = root + "/.fp-git-blocks";
+  util.ensureDir(base);
+  var path = base + "/" + name;
+  var repo;
+  var opts = {
+    remoteCallbacks: {
+      certificateCheck: function() { return 1; }
+    }
+  };
+  if (!fs.existsSync(path)) {
+    return Git.Clone(def.url, path, opts).then(function(repo) {
+      // Check for tag or branch and switch to tag or branch
+      return readBlockDir(path + (def.path ? "/" + def.path : ""));
+    },function(err) {
+      throw new Error(err);
+    });
+  } else {
+    return Git.Repository.open(path).then(
+      function(repo) {
+        // Do an update if no tag or branch is given
+
+        // Check for tag or branch and switch to tag or branch
+        return readBlockDir(path + (def.path ? "/" + def.path : ""));
+      }
+    );
+  }
+}
 
 // =========================================================================================
 

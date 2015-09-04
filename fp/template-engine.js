@@ -8,7 +8,6 @@ dot.templateSettings.varname = "fp";
 
 var fs = require('fs');
 var util = require("./util");
-var mkdirp = require('mkdirp');
 var path = require('path');
 
 exports.fillTemplates = function (ctx, image, params, blocks) {
@@ -88,9 +87,9 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
 
   function fillTemplate(paramValues, templateFile, template, dir) {
     var path = getPath(paramValues);
-    ensureDir(path);
+    util.ensureDir(path);
     if (dir) {
-      ensureDir(path + "/" + dir);
+      util.ensureDir(path + "/" + dir);
     }
     var file = path + "/" + templateFile;
     var context = getTemplateContext(paramValues);
@@ -175,15 +174,6 @@ exports.fillTemplates = function (ctx, image, params, blocks) {
         logFile(file, oldContent ? "NEW".yellow : "CHANGED".green, key);
       }
     });
-  }
-
-  function ensureDir(dir) {
-    if (!fs.existsSync(dir)) {
-      mkdirp.sync(dir, 0755);
-    }
-    if (!fs.statSync(dir).isDirectory()) {
-      throw new Error(dir + " is not a directory");
-    }
   }
 
   function logFile(file, txt, prefix) {

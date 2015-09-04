@@ -1,3 +1,5 @@
+var fs = require('fs');
+var mkdirp = require('mkdirp');
 
 exports.foreachParamValue = function(params, callback) {
   // Function for doing a fan-out on param values, called recursively
@@ -19,4 +21,13 @@ exports.foreachParamValue = function(params, callback) {
   };
 
   collect(params.types.slice(0), []);
+};
+
+exports.ensureDir = function(dir) {
+  if (!fs.existsSync(dir)) {
+    mkdirp.sync(dir, 0755);
+  }
+  if (!fs.statSync(dir).isDirectory()) {
+    throw new Error(dir + " is not a directory");
+  }
 };

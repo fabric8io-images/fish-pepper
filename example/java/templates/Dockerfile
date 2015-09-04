@@ -11,5 +11,7 @@ RUN chmod 755 /bin/jolokia_opts \
  && mkdir /opt/jolokia \
  && wget {{= fp.jolokiaBaseUrl}}/{{= fp.jolokiaVersion}}/jolokia-jvm-{{= fp.jolokiaVersion}}-agent.jar -O /opt/jolokia/jolokia.jar
 
+{{= fp.block('run-java-sh','copy',{ dest: "/" }) }}
+
 # Print out the version by default
 CMD java -jar /opt/jolokia/jolokia.jar --version
