@@ -15,11 +15,15 @@ exports.loadLocal = function() {
 
 exports.loadRemote = function(root,blockDefs) {
   var ret = {};
+  if (blockDefs) {
     blockDefs.forEach(function (def) {
-      if (def.type == "git") {
-        _.extend(ret,gitLoader.load(root,def,readBlockDir));
+      // plain URL is also ok
+      def = typeof def === "object" ? def : { url : def };
+      if (def.type == "git" || (def.url && def.url.match(/.*\.git$/))) {
+        _.extend(ret, gitLoader.load(root, def, readBlockDir));
       }
     });
+  }
   return ret;
 };
 

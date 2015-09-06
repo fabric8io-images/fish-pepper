@@ -464,18 +464,28 @@ For example
 blocks:
   - type: "git"
     url: "https://github.com/fabric8io/run-java-sh.git"
-    path: "blocks"
-    tag: "v0.0.5"
+    path: "fish-pepper"
 ```
 
 The `blocks` sections contains a list of external references. This
 external reference has a type (currently only `git` is supported), an
-access URL (`https` is mandatory for now). Optionally a path pointing
+access URL (`https` is mandatory for now). Optionally a `path` pointing
 in this Git Repo is provided. This directory is then used as a blocks
 directory as described above.
 
+If `type` is omitted, the type is extracted from the `url` (i.e. if 
+it ends with `.git` its of type "git"). If instead of an object a string
+is provided as block, this string is interpreted as URL. If no `path` is given, 
+the defaul path `fish-pepper` is assumed. The example above hence can 
+be written also as
+
+```yml
+blocks:
+  - "https://github.com/fabric8io/run-java-sh.git"
+```
+
 By default `master` is checked out, but this can be influenced either
-with a `tag:` or `branch:` specification in which case the specific
+with a `tag` or `branch` property in which case the specific
 tag or branch is used. 
 
 ### File mappings

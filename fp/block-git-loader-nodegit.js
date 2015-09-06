@@ -22,26 +22,32 @@ exports.load = function (root, def, blockReadFunc) {
     var base = root + "/.fp-git-blocks";
     util.ensureDir(base);
     var path = base + "/" + name;
-    if (!fs.existsSync(path)) {
-      return Git.Clone(def.url, path, {remoteCallbacks: getRemoteCallbacks()})
-        .then(function (repo) {
-          return switchToBranchOrTag(repo, def)
-        })
-        .then(function () {
-          return blockReadFunc(path + (def.path ? "/" + def.path : ""));
-        });
+
+    var gitCloneOrPull;
+    if (fs.existsSync(path)) {
+      // Open and pull
+      gitCloneOrPull =
+        Git.Repository.open(path)
+          .then(function (repo) {
+            return pull(repo, def.branch)
+          });
     } else {
-      return Git.Repository.open(path)
-        .then(function (repo) {
-          return pull(repo, def.branch)
-        })
-        .then(function (repo) {
-          return switchToBranchOrTag(repo, def)
-        })
-        .then(function () {
-          return blockReadFunc(path + (def.path ? "/" + def.path : ""));
-        });
+      // Clone
+      gitCloneOrPull =
+        Git.Clone(def.url, path, {remoteCallbacks: getRemoteCallbacks()});
     }
+
+    return gitCloneOrPull
+      .then(function (repo) {
+        return switchToBranchOrTag(repo, def)
+      })
+      .then(function () {
+        return blockReadFunc(getBlocksPath(path,def));
+      });
+  }
+
+  function getBlocksPath(path,def) {
+    return path + "/" + (def.path ? def.path : "fish-pepper");
   }
 
   function switchToBranchOrTag(repo, def) {
