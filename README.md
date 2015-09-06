@@ -389,7 +389,7 @@ looked up in multiple locations:
 * The location referenced in the `blocks:` sections in
   `fish-pepper.yml`. 
 
-There are two block variants.
+There are two kind of blocks.
 
 ##### Simple blocks
 
@@ -450,6 +450,33 @@ instructions which can be included in the README template with `{{=
 fp.block('run-sh','readme.md',{ 'fp-no-files' : true }) }}`. The third
 argument to this call indicates that no files should be copied in
 this case. 
+
+#### Remote Block definitions
+
+Blocks can be also defined in a Git repository which must be
+accessible with `https`. These external references are defined in the
+main `fish-pepper.yml` configuration file in a dedicated `blocks`
+section.
+
+For example
+
+```yml
+blocks:
+  - type: "git"
+    url: "https://github.com/fabric8io/run-java-sh.git"
+    path: "blocks"
+    tag: "v0.0.5"
+```
+
+The `blocks` sections contains a list of external references. This
+external reference has a type (currently only `git` is supported), an
+access URL (`https` is mandatory for now). Optionally a path pointing
+in this Git Repo is provided. This directory is then used as a blocks
+directory as described above.
+
+By default `master` is checked out, but this can be influenced either
+with a `tag:` or `branch:` specification in which case the specific
+tag or branch is used. 
 
 ### File mappings
 

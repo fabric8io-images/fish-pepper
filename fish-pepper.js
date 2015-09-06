@@ -21,8 +21,9 @@ var DEBUG = false;
 
 (function () {
 
+  var ctx;
   try {
-    var ctx = setupContext();
+    ctx = setupContext();
 
     // All supported servers which must be present as a sub-directory
     var images = getImages(ctx);
@@ -32,7 +33,10 @@ var DEBUG = false;
     }
     processImages(ctx, images)
   } catch (e) {
-    console.log(e.stack);
+    console.log(e.message.red);
+    if (!ctx || ctx.options.verbose) {
+      console.log(e.stack.grey);
+    }
   }
 }).future()();
 
@@ -212,6 +216,7 @@ function setupContext() {
     ['d', 'dir=ARG', 'Directory holding the image definitions'],
     ['n', 'nocache', 'Don\'t cache when building images'],
     ['e', 'experimental', 'Include images which are marked as experimental'],
+    ['v', 'verbose', 'Print out more information'],
     ['h', 'help', 'display this help']
   ]);
 
