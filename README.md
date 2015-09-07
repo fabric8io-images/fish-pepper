@@ -24,6 +24,26 @@ The generated build files can also be used directly to create the images
 with `fish-pepper` against a running Docker daemon or they can be used
 as automated Docker Hub builds when checked in into git.
 
+### Installation
+
+`fish-pepper` can be installed as any other [node.js]() application
+by calling [npm]():
+
+```
+npm -g install fish-pepper
+```
+
+It is recommended to install fish-pepper globally so that it is easily
+accessible from your build directories. 
+
+If you want to install the most current version, call `npm` from the
+project directory:
+
+```
+cd fish-pepper
+npm -g install
+```
+
 ### Synopsis
 
 ````
