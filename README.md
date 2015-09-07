@@ -1,4 +1,4 @@
-## fish-pepper - Spicing<sup id="a1">1(#f1)</sup> up the ocean
+## fish-pepper - Spicing[^1] up the ocean
 
 **fish-pepper is a multi-dimensional docker build generator** .  It
 allows you to create many similar Docker builds with the help of
@@ -740,9 +740,9 @@ OpenJDK 7 and 8 with a JDK and JRE, respectively.
 All the configuration files are documented, so please have a look a
 them to see how the tepmplating works.
 
-<b id="f1>[1]</b>*fish pepper* is an
+
+[^1]: *fish pepper* is an
 [ancient chili pepper variety](http://www.motherearthnews.com/organic-gardening/fish-pepper-zmaz09amzraw.aspx)
 coming from Baltimore and are famous for the ornamental
-qualities. They are not too hot and are ideal to spice up everything,
-even Docker builds :) [↩](#a1)
+qualities. They are not too hot and are ideal to spice up everything, even Docker builds :)
 
