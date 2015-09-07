@@ -4,3 +4,5 @@ node_modules
 openjdk-6
 openjdk-7
 openjdk-8
+example/.fp-*
+example/java/images
