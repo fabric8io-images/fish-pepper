@@ -73,7 +73,7 @@ function readBlockDir(path) {
           } else {
             block.text[extractBasename(subEntry)] = text;
           }
-        } else if (subStat.isDirectory() && subEntry == "files") {
+        } else if (subStat.isDirectory() && subEntry == "fp-files") {
           fs.readdirSync(subPath).forEach(function (f) {
             block.files.push(subPath + "/" + f);
           });
