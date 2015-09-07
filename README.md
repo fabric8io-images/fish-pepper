@@ -237,7 +237,7 @@ dedicated, parameter value specific configurations for creating the
 template's context. This configuration is stored in a special
 `config:` object which looks like:
 
-```
+```yaml
 fish-pepper:
   params:
     - type1
