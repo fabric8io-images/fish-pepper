@@ -65,7 +65,7 @@ Examples:
 ### Options
 
 | Short         | Long      | Description  |
-| --------------- |:--------:| -----:|
+| --------------- |--------| ----- |
 | `-i` <images>   | `--image`| A comma separated list of images to build. Images are specified as directory names, which must contain a `images.yml` configuration |
 | `-p` <parameters> | `--param` | A comma separated list of parameters to specify which builds to create. The order must be according to the defined order in `images.yml` |
 | `-a`            | `--all`  | Build all images with all parameters |
