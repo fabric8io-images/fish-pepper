@@ -21,6 +21,15 @@ variables:
 
 So, if you start the container with `docker run -e JOLOKIA_OFF ...` no agent will be launched.
 
+### Startup Script /run-java.sh
+
+The default command for this image is `/run-java.sh`. Its purpose it
+to fire up Java applications which are provided as fat-jars, including
+all dependencies or more classical from a main class, where the
+classpath is build up from all jars within a directory.x1
+
+{{= fp.block('run-java-sh','readme',{ 'fp-no-files' : true }) }}
+
 The following versions are used:
 
 {{= fp.block('readme-footer') }}

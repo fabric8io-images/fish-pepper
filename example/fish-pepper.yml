@@ -14,6 +14,5 @@ maintainer: "roland@jolokia.org"
 blocks:
   - type: "git"
     url: "https://github.com/fabric8io/run-java-sh.git"
-    path: "blocks"
-    tag: "v0.0.5"
+    path: "fish-pepper"
 

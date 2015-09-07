@@ -6,13 +6,13 @@ allows you to create many similar Docker builds with the help of
 *compositions* of building blocks in addition to the usual Docker
 *inheritance* from base images.
 
-Let's have a look at an example for a **Java base image**: Some users
+For example consider a **Java base image**: Some users
 might require Java 7, some want Java 8. For running Microservices a
-JRE might be sufficient. In other use cases you need a full JDK. Theses
+JRE might be sufficient. In other use cases you need a full JDK. These
 four variants are all quite similar with respect to documentation,
 Dockerfiles and support files like startup scripts.  Copy-and-paste
 might work but is not a good solution considering the image evolution
-over time or introducing even more parameters.
+over time or when introducing even more parameters.
 
 With `fish-pepper` you can use flexible templates which are filled
 with variations of the base image (like `'version' :
@@ -20,14 +20,15 @@ with variations of the base image (like `'version' :
 multiple, similar Dockerfile builds. The [example](example) below
 dives into this in more details.
 
-The generated build files can also be used directly to create the images
-with `fish-pepper` against a running Docker daemon or they can be used
-as automated Docker Hub builds when checked in into git.
+The generated build files can also be used directly to create the
+images with `fish-pepper` against a running Docker daemon or they can
+be used as the content for automated Docker Hub builds when checked in
+into Github.
 
 ### Installation
 
-`fish-pepper` can be installed as any other [node.js]() application
-by calling [npm]():
+`fish-pepper` can be installed as any other [node.js](https://nodejs.org) application
+by calling [npm](http://npmjs.org/):
 
 ```
 npm -g install fish-pepper

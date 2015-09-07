@@ -1,43 +1,43 @@
 ---
-  # Two dimensional build: 1st dimension == version (7 or 8), 2nd dimension == type (jdk or jre)
-  fish-pepper:
-    params:
-      - "version"
-      - "type"
-    # Name stem to use for the images to create with -b (param value will be appended with -)
-    name: "jolokia/fish-pepper-java"
-    # Internal build number. Should be increased for each change
-    build: 2
+# Two dimensional build: 1st dimension == version (7 or 8), 2nd dimension == type (jdk or jre)
+fish-pepper:
+  params:
+    - "version"
+    - "type"
+  # Name stem to use for the images to create with -b (param value will be appended with -)
+  name: "jolokia/fish-pepper-java"
+  # Internal build number. Should be increased for each change
+  build: 2
 
-  # Image specific vars used within templates
-  jolokiaBaseUrl: "http://central.maven.org/maven2/org/jolokia/jolokia-jvm"
-  jolokiaVersion: "1.3.1"
-  # Overrides global properties
-  maintainer: "roland@jolokia.org"
+# Image specific vars used within templates
+jolokiaBaseUrl: "http://central.maven.org/maven2/org/jolokia/jolokia-jvm"
+jolokiaVersion: "1.3.1"
+# Overrides global properties
+maintainer: "roland@jolokia.org"
 
-  # Parameter specific configuration. For each type there is entry which holds all possible values. This values
-  # are used to create the directory hierarchy and also used within the image names.
-  config:
-    version:
-      openjdk7:
-        # The version is used in the tag
-        fish-pepper:
-          version: "1.7"
-          # Additional tags to add
-          tags:
-            - "7u79"
-        # Template variables
-        java: "java:7u79"
-        fullVersion: "OpenJDK 1.7.0_79 (7u79-2.5.5-1~deb8u)"
-      openjdk8:
-        fish-pepper:
-          version: "1.8"
-          tags:
-          - "8u45"
-        java: "java:8u45"
-        fullVersion: "OpenJDK 1.8.0_45 (1.8.0_45-internal-b14)"
-    type:
-      jre:
-        extension: "-jre"
-      jdk:
-        extension: "-jdk"
+# Parameter specific configuration. For each type there is entry which holds all possible values. This values
+# are used to create the directory hierarchy and also used within the image names.
+config:
+  version:
+    openjdk7:
+      # The version is used in the tag
+      fish-pepper:
+        version: "1.7"
+        # Additional tags to add
+        tags:
+          - "7u79"
+      # Template variables
+      java: "java:7u79"
+      fullVersion: "OpenJDK 1.7.0_79 (7u79-2.5.5-1~deb8u)"
+    openjdk8:
+      fish-pepper:
+        version: "1.8"
+        tags:
+        - "8u45"
+      java: "java:8u45"
+      fullVersion: "OpenJDK 1.8.0_45 (1.8.0_45-internal-b14)"
+  type:
+    jre:
+      extension: "-jre"
+    jdk:
+      extension: "-jdk"
