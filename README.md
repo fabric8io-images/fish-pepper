@@ -176,15 +176,15 @@ for the templating.
 
 The top-level configuration file is typically quite slim:
 
-```
+```yaml
 ---
-  # Variable influencing the behaviour of fish-pepper are given in an extra object 'fish-pepper'
-  fish-pepper:
-     # Registry for building the name when building images with '-b'. Can be omitted
-     # in which case no registry is used
-     registry: "docker.io"
-     # A user which is used as default when no image stem is given
-     repoUser: "fabric8"
+# Variable influencing the behaviour of fish-pepper are given in an extra object 'fish-pepper'
+fish-pepper:
+  # Registry for building the name when building images with '-b'. Can be omitted
+  # in which case no registry is used
+  registry: "docker.io"
+  # A user which is used as default when no image stem is given
+  repoUser: "fabric8"
 
   # Custom global variables useful in templates
   maintainer: "rhuss@redhat.com"
