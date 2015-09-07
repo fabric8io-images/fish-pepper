@@ -1,9 +1,10 @@
 ## fish-pepper - Spicing up the ocean
 
-`fish-pepper` is a multi-dimensional docker build generator.  It
-allows you to create many similar Docker builds with the help of  
-templates. It allows for *compositions* of building blocks in
-addition to the usual Docker *inheritance* from base images. 
+**fish-pepper is a multi-dimensional docker build generator** .  It
+allows you to create many similar Docker builds with the help of
+[templates](#templates) and building [blocks](#blocks). It allows for
+*compositions* of building blocks in addition to the usual Docker
+*inheritance* from base images.
 
 Let's have a look at an example for a **Java base image**: Some users
 might require Java 7, some want Java 8. For running Microservices a
@@ -13,11 +14,11 @@ Dockerfiles and support files like startup scripts.  Copy-and-paste
 might work but is not a good solution considering the image evolution
 over time or introducing even more parameters.
 
-With `fish-pepper` you can use flexible templates which are filled with
-variations of the base image (like `'version' : [ 'java7', 'java8']`,
-`'type': ['jdk', 'jre']`) and which will create multiple, similar
-Dockerfile builds. The [example](example) below dives into this
-example in more details. 
+With `fish-pepper` you can use flexible templates which are filled
+with variations of the base image (like `'version' :
+[ 'java7', 'java8']`, `'type': ['jdk', 'jre']`) and which will create
+multiple, similar Dockerfile builds. The [example](example) below
+dives into this in more details.
 
 The generated build files can also be used directly to create the images
 with `fish-pepper` against a running Docker daemon or they can be used
@@ -154,7 +155,7 @@ combination (`--param`) is processed.
 
 ### Configuration
 
-There are two kinds of configuration file:
+There are two kinds of configuration files:
 
 * A global configuration `fish-pepper.yml` global, image independent
   configuration, like a default Docker user name or the maintainer to
@@ -215,7 +216,7 @@ blocks defined configuration values with a special meaning.
 * **params** defines the parameterization of the image family. See below.
 * **name** the name stem to use when building images with `-b`. If not
   given, the name is calculated as described in an extra
-  [section](#image naming). 
+  [section](#image-naming). 
 
 *Parameters* are a central concept of fish-pepper. They are used to
 fan-out a image family into multiple image builds. A parameter has a
@@ -357,7 +358,7 @@ The most important directives are
         * {{= image.name }}
         {{~}}
 
-* With ``{{? if-condition} ... {{?? else-if-conition}} ... {??} (else)
+* With `{{? if-condition} ... {{?? else-if-conition}} ... {??} (else)
 ... {{?}}` conditions can be build up easily:
 
         {{? images.length > 1 }}
@@ -567,16 +568,78 @@ By default `master` is checked out, but this can be influenced either
 with a `tag` or `branch` property in which case the specific
 tag or branch is used. 
 
-### File mappings
-
-*to be done*
-
-* for different parameter value different files can be copied with the
-  same name into docker build dir
-
 ### Defaults
 
-*to be done*
+For each parameter configuration default can be configured. Assume the
+following part of an `images.yml`:
+
+```yaml
+# ....
+config:
+  version:
+    default:
+      downloadUrl: "http://download.eclipse.org/jetty/${JETTY_VERSION}/dist/jetty-distribution-${JETTY_VERSION}.tar.gz"
+      from:
+        jre8: "fabric8/java-centos-openjdk8-jre"
+        jdk7: "fabric8/java-centos-openjdk7-jdk"
+        version: "1.0.0"
+    9:
+      version: "9.3.2.v20150730"
+    8:
+      version: "8.1.17.v20150415"
+    7:
+      version: "7.6.17.v20150415"
+# ...    
+```
+
+When iterating over the versions `fp.config.version` will also hold
+the properties `downloadUrl` and `from` which come from the default
+section if not overriden by a specfic version. The advantage is the
+you can avoid duplication of common parameter, the only drawback is
+that you can't have a parameter value of `default`.
+
+### File mappings
+
+For more complex variations of Dockerfile which would lead into
+complicated Templates with a lof of conditionals it is possible to
+provide to use alternative templates based on parameter values.
+
+This is best explained with an example: The project
+[fabric8/base-images](https://github.com/fabric8io/base-images) use
+fish pepper to generate a collection of base images, also for Jetty
+down to version 4. However the download process of the Jetty archives
+changes significantly when Jetty moved from Mortbay to Eclipse. So
+base images provides two different Dockerfile templates: One for
+[Jetty 7 to 9](https://github.com/fabric8io/base-images/blob/master/jetty/templates/Dockerfile)
+and one for
+[Jetty 4 to 6](https://github.com/fabric8io/base-images/blob/master/jetty/templates/__Dockerfile-456) 
+
+The relevant part in `images.yml` looks then like
+
+```yaml
+# ...
+config:
+  version:
+    9:
+      version: "9.3.2.v20150730"
+    8:
+      version: "8.1.17.v20150415"
+    7:
+      version: "7.6.17.v20150415"
+    6:
+      version: "6.1.18"
+      fish-pepper:
+        mappings:
+          __Dockerfile-456: "Dockerfile"
+    # version 4 & 5 are similar
+```
+
+For Jetty version 6 there is a special section
+`fish-pepper.mappings`. This section contains an object which maps
+source files to its destination in the Docker build directory. In this
+example the template `__Dockerfile-456` is copied over `Dockerfile`
+after it has been processed as a template. That way it is quite easy
+to create alternativs for certain template files.
 
 ### Image naming
 
@@ -602,13 +665,12 @@ in the `images` file, then this will be appended, too. If no version
 is found at all `latest` is used.
 
 In addition to this major tag more tags can be provided by the
-parameter values' configuration. Each tag is creates an extra tag.
+parameter values' configuration. Each tag creates an additional tag.
 
-Sounds complicated ? Well, maybe a bit but an example might shed some
-light on this. Consider the following `images.yml` for a `java` image
-family:
+Sounds complicated ? Hopefully an example sheds some light on
+this. Consider the following `images.yml` for a `java` image family:
 
-```
+```yaml
   # Two dimensional build: 1st dimension == version (7 or 8), 
   # 2nd dimension == type (jdk or jre)
   fish-pepper:
@@ -622,8 +684,8 @@ family:
 
   # .......
 
-  # Parameter specific configuration. For each type there is entry which holds all 
-  # possible values. This values are used to create the directory hierarchy and 
+  # Parameter specific configuration. For each type there is entry which holds all
+  # possible values. This values are used to create the directory hierarchy and
   # also used within the image names.
   config:
     version:
@@ -641,17 +703,15 @@ family:
           tags:
           - "8u45"
           - "latest"
-        # .....
+        # ....
     type:
       jre:
-        fish-pepper:
-          version: "jre"
+        # ....
       jdk:
-        fish-pepper:
-          version: "jdk"
+        # .... 
 ```
 
-When usign `fish-pepper -b` with this image config you will get the
+When using `fish-pepper build` with this image config you will get the
 following images (user and registry omitted):
 
 * java-openjdk7-jdk:1.7-jdk-2
