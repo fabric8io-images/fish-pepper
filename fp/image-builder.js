@@ -4,7 +4,6 @@ var child = require('child_process');
 var stream = require('stream');
 
 exports.build = function(root, docker, params, image, opts) {
-  console.log(image.dir.magenta);
   doBuildImages(root, docker, imageNames.createImageNames(image, params),opts);
 };
 

@@ -1,7 +1,7 @@
 var fs = require('fs');
 var _ = require('underscore');
 var yaml = require('js-yaml');
-var gitLoader = require('./block-git-loader-nodegit');
+var gitLoader = require('./block-loader/nodegit');
 
 exports.loadLocal = function() {
   var ret = {};
@@ -16,6 +16,7 @@ exports.loadLocal = function() {
 exports.loadRemote = function(root,blockDefs) {
   var ret = {};
   if (blockDefs) {
+    console.log("* " + "Loading external blocks".cyan);
     blockDefs.forEach(function (def) {
       // plain URL is also ok
       def = typeof def === "object" ? def : { url : def };

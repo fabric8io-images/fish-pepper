@@ -56,10 +56,10 @@ function processImages(ctx, images) {
 
 // "make"
 function createDockerFileDirs(ctx, images) {
-  console.log("Creating Docker Builds\n".cyan);
+  console.log("\n* " + "Creating Docker Builds".cyan);
 
   images.forEach(function (image) {
-    console.log(image.dir.magenta);
+    console.log("  " + image.dir.magenta);
     var blocks = blockLoader.loadLocal(ctx.root + "/" + image.dir + "/blocks");
     var params = extractParams(image, ctx);
 
@@ -69,11 +69,12 @@ function createDockerFileDirs(ctx, images) {
 
 // "build"
 function buildImages(ctx, images) {
-  console.log("\n\nBuilding Images\n".cyan);
+  console.log("\n* " + "Building Images".cyan);
 
   var docker = dockerBackend.create(ctx.options);
 
   images.forEach(function(image) {
+    console.log("  " + image.dir.magenta);
     var params = extractParams(image, ctx);
     imageBuilder.build(ctx.root, docker, params, image, { nocache: ctx.options.nocache, debug: DEBUG });
   });

@@ -1,6 +1,6 @@
 var Git = require('nodegit');
 var Future = require('fibers/future');
-var util = require('./util');
+var util = require('./../util');
 var fs = require('fs');
 
 exports.load = function (root, def, blockReadFunc) {
@@ -15,7 +15,7 @@ exports.load = function (root, def, blockReadFunc) {
   });
   return future.wait();
 
-  // ===============================================================
+// ===============================================================
 
   function readBlocksFromGit(root, def) {
     var name = (def.url.match(/.*\/([^/]+?)(?:\..*)?$/))[1];
@@ -29,10 +29,12 @@ exports.load = function (root, def, blockReadFunc) {
       gitCloneOrPull =
         Git.Repository.open(path)
           .then(function (repo) {
+            console.log("  Pulling " + def.url.blue + branchOrTagLabel(def));
             return pull(repo, def.branch)
           });
     } else {
       // Clone
+      console.log("  Cloning " + def.url.blue + branchOrTagLabel(def));
       gitCloneOrPull =
         Git.Clone(def.url, path, {remoteCallbacks: getRemoteCallbacks()});
     }
@@ -42,11 +44,11 @@ exports.load = function (root, def, blockReadFunc) {
         return switchToBranchOrTag(repo, def)
       })
       .then(function () {
-        return blockReadFunc(getBlocksPath(path,def));
+        return blockReadFunc(getBlocksPath(path, def));
       });
   }
 
-  function getBlocksPath(path,def) {
+  function getBlocksPath(path, def) {
     return path + "/" + (def.path ? def.path : "fish-pepper");
   }
 
@@ -125,5 +127,14 @@ exports.load = function (root, def, blockReadFunc) {
         });
       });
   }
-};
 
+  function branchOrTagLabel(def) {
+    if (def.branch || def.tag) {
+      var label = def.branch ? " (Branch: " + def.branch + ")" : " (Tag: " + def.tag + ")";
+      return label.gray;
+    } else {
+      return "";
+    }
+  }
+
+};

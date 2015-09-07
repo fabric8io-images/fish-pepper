@@ -266,39 +266,41 @@ fill in the template.
 
 An example:
 
-```
+```yaml
 config:
-    version:
-      openjdk7:
-        fish-pepper:
-          version: "1.7"
-          tags:
-            - "7u79"
-        java: "java:7u79"
-        fullVersion: "OpenJDK 1.7.0_79 (7u79-2.5.5-1~deb8u)"
-      openjdk8:
-        fish-pepper:
-          version: "1.8"
-          tags:
-          - "8u45"
-        java: "java:8u45"
-        fullVersion: "OpenJDK 1.8.0_45 (1.8.0_45-internal-b14)"
-    type:
-      jre:
-        extension: "-jre"
-      jdk:
-        extension: "-jdk"
+  version:
+    openjdk7:
+      fish-pepper:
+        version: "1.7"
+        tags:
+          - "7u79"
+      java: "java:7u79"
+      fullVersion: "OpenJDK 1.7.0_79 (7u79-2.5.5-1~deb8u)"
+    openjdk8:
+      fish-pepper:
+        version: "1.8"
+        tags:
+        - "8u45"
+      java: "java:8u45"
+      fullVersion: "OpenJDK 1.8.0_45 (1.8.0_45-internal-b14)"
+  type:
+    jre:
+      extension: "-jre"
+    jdk:
+      extension: "-jdk"
 ```
 
 Here are two types with two values each, resulting in four Docker
 builds. For the build with `version=openjdk7` and `type=jre` the
-template gets a template context which looks like (excluding parameter
-independent properties)
+template gets a template context which holds this information:
 
-```
-java: "java:7u79"
-fullVersion: "OpenJDK 1.7.0_79 (7u79-2.5.5-1~deb8u)"
-extension: "-jre"
+```yaml
+config:
+  version:
+    java: "java:7u79"
+    fullVersion: "OpenJDK 1.7.0_79 (7u79-2.5.5-1~deb8u)"
+  type:
+    extension: "-jre"
 param:
   version: "openjdk7"
   type: "jre"
@@ -309,6 +311,9 @@ above you can also see, that each parameter value's configuration can
 also contain a `fish-pepper:` section. As for the top-level
 `fish-pepper:` the properties specified here influence the behaviour
 of the build files generation.
+
+The template context is described in detail in
+[Template context](#template-context).
 
 * **experimental** if set, this parameter value is considered to be
   experimental and the value will only be used when the command line
@@ -323,10 +328,84 @@ of the build files generation.
 
 ### Templates
 
-*to be done*
+Fish pepper templates are
+[DoT.js](http://olado.github.io/doT/index.html) templates. It is a
+fast template library which allows for the full expressiveness of
+JavaScript. Its a bit similar to JSP or PHP. The template syntax is
+described in detail [here] (section "Usage").
 
-* template syntax for DoT.js
-* how the template context looks like (merging of configs)
+The most important directives are
+
+* `{{= ... }}` will evaluate the JavaScript within the parentheses and
+  evaluate it as string which then is inserted literally into the
+  text.
+* `{{ ... }}` will add the JavaScript code (which can be partially
+  complete only) to the generated JavaScript rendering
+  function. E.g.
+
+        {{ images.forEach(function image) { }}
+        * {{= image.name }}
+        {{ } }}
+
+  will iterate over `images` (which needs to be initialized
+  beforehand) and create a bullet list of the image names.
+* ``{{~ array :value:index}}`` can be used as shortcut for iteration
+  over arrays. So, the example above can be written more elegantly
+  with 
+
+        {{~ images :image:index}}
+        * {{= image.name }}
+        {{~}}
+
+* With ``{{? if-condition} ... {{?? else-if-conition}} ... {??} (else)
+... {{?}}` conditions can be build up easily:
+
+        {{? images.length > 1 }}
+          More than one image
+        {{?? images.length == 1 }}
+          Exactly one image 
+        {{??}}
+          No image
+        {{?}}
+
+#### Template context
+
+All fish-pepper templates have access to the fish-pepper context
+object. This accessible as variable **fp** from within the templates.
+
+The **fp** context has the following properties:
+
+* `param` is a map holding the current parameter values. As described
+  in [Configuration](#images.yml) template are evaluated for every
+  parameter values tuple. In each iteration the `param` property holds
+  a map with the current parameter values. For the example above e.g
+  when the current parameter values are `version == "openjdk7"` and
+  `type == "jdk"` then `fp.param` is
+
+        {
+          version: "openjdk7"
+          type: "jdk"
+        }
+
+* `config` is an object which holds the configuration for the
+  selected parameter values for the current template
+  evaluation. E.g. assuming the example configuration given
+  [above](#images.yml), then when the template for the parameter
+  values `version == 'openjdk8'` and `type == 'jre'` is used,
+  then `fp.config.version.java` evaluated to `java:8u45` and
+  `fp.config.type.extension` to `-jre`. The general scheme is
+  `fp.config.`*parameter type* which references to the currently
+  active parameter's configuration. 
+* All other properties defined in `fish-pepper.yml` and `images.yml`
+  are directly accesible as properties from `fp`, so you can easily
+  define image global and global global properties. Properties with
+  the same name in `images.yml` take precedence over the properties in
+  `fish-pepper.yml`. 
+* `block()` is a function to use [blocks](#blocks)
+
+Examples of the context usage can be found in the
+[templates](example/java/templates) used in the Java fish-pepper demo
+included in this repository. 
 
 ### Blocks
 
@@ -347,7 +426,7 @@ and how to create blocks.
 #### Block usage
 
 Defined Blocks can be referenced from within templates with a function
-on the teplate context. For example,
+on the template context. 
 
 ```javascript
 {{= fp.block('version-info') }}
