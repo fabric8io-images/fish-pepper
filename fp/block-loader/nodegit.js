@@ -7,6 +7,8 @@ exports.load = function (root, def, blockReadFunc) {
 
   // We need a future here because nodegit is inherently async working with promises,
   // whereas the rest of the code is sync.
+  // Ideally, the rest of the code would be reworked to work with promises, too
+  // See also https://github.com/fabric8io/fish-pepper/issues/4 
   var future = new Future();
   readBlocksFromGit(root, def).then(function (blocks) {
     future.return(blocks)
@@ -15,7 +17,7 @@ exports.load = function (root, def, blockReadFunc) {
   });
   return future.wait();
 
-// ===============================================================
+  // ===============================================================
 
   function readBlocksFromGit(root, def) {
     var name = (def.url.match(/.*\/([^/]+?)(?:\..*)?$/))[1];
