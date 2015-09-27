@@ -1,5 +1,5 @@
 var Docker = require('dockerode');
-var _ = require('underscore');
+var _ = require('lodash');
 var fs = require('fs');
 
 exports.create = function(options) {

@@ -1,7 +1,7 @@
 // ===========================================================
 // Context Object when creating all the docker files
 
-var _ = require('underscore');
+var _ = require('lodash');
 var dot = require('dot');
 dot.templateSettings.strip = false;
 dot.templateSettings.varname = "fp";
@@ -10,13 +10,13 @@ var fs = require('fs');
 var util = require("./util");
 var path = require('path');
 
-exports.fillTemplates = function (ctx, image, params, blocks) {
+exports.fillTemplates = function (ctx, image, params, blocks, paramIgnoreMap) {
   var dir = ctx.root + "/" + image.dir;
 
   var fillFunc = createFillFunction(parseTemplates(dir));
   util.foreachParamValue(params, function (paramValues) {
     fillFunc(paramValues);
-  });
+  },paramIgnoreMap);
 
   // ===========================================================================================
   // Private methods

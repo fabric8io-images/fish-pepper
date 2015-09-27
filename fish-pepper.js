@@ -4,7 +4,7 @@
 var fs = require('fs');
 var path = require('path');
 require('colors');
-var _ = require('underscore');
+var _ = require('lodash');
 var yaml = require('js-yaml');
 var pjson = require('./package.json');
 
@@ -63,7 +63,7 @@ function createDockerFileDirs(ctx, images) {
     var blocks = blockLoader.loadLocal(ctx.root + "/" + image.dir + "/blocks");
     var params = extractParams(image, ctx);
 
-    templateEngine.fillTemplates(ctx, image, params, _.extend(blocks,ctx.blocks));
+    templateEngine.fillTemplates(ctx, image, params, _.extend(blocks,ctx.blocks), createParamIgnoreMap(image.config.config));
   });
 }
 
@@ -87,10 +87,7 @@ function getImages(ctx) {
   if (!ctx.root) {
     return undefined;
   }
-  var allImageNames = _.filter(fs.readdirSync(ctx.root), function (f) {
-    var p = ctx.root + "/" + f;
-    return fs.statSync(p).isDirectory() && existsConfig(p, "images");
-  });
+  var allImageNames = extractImages(ctx.root);
 
   if (ctx.options.image) {
     imageNames = _.filter(allImageNames, function (image) {
@@ -99,10 +96,18 @@ function getImages(ctx) {
   } else if (ctx.options.all) {
     imageNames = allImageNames;
   } else {
+    // Determine image name from the current working directory
+    // which is somewhere below
     var currentDir = process.cwd();
-    var imageMatch = currentDir.match("^" + ctx.root + "/([^/]+)");
+    var imageMatch =
+      currentDir.match("^" + ctx.root + "/(.+)(/images/?.*)") ||
+      currentDir.match("^" + ctx.root + "/(.+)");
     if (imageMatch) {
-      imageNames = [ imageMatch[1] ]
+      // Include multiple images if we are 'in between' the root dir
+      // and the image directory
+      imageNames = _.filter(allImageNames,function(name) {
+        return name.match("^" + imageMatch[1]);
+      });
     } else {
       imageNames = allImageNames;
     }
@@ -111,7 +116,7 @@ function getImages(ctx) {
     var config = getImageConfig(ctx, name);
     var repoUser = config.fpConfig('repoUser');
     repoUser =  repoUser ? repoUser + "/" : "";
-    var fullImageName = config.fpConfig('name') || repoUser + name;
+    var fullImageName = config.fpConfig('name') || repoUser + name.replace(/\//g,'-'); // replace dir seps with '-' for deeper image defs
     return {
       "dir": name,
       "name": fullImageName,
@@ -119,9 +124,29 @@ function getImages(ctx) {
   })
 }
 
+function extractImages(root) {
+  var ret = [];
+
+  function _findConfigs(dir) {
+    var slash = dir.length > 0 ? "/" : "";
+    fs.readdirSync(root + slash + dir).forEach(function(f) {
+      var p = root + slash + dir + "/" + f;
+      if (fs.statSync(p).isDirectory()) {
+        if (existsConfig(p,"images")) {
+          ret.push(dir + slash + f);
+        } else {
+          _findConfigs(dir + slash + f);
+        }
+      }
+    });
+    return ret;
+  }
+  return _findConfigs("");
+}
+
 function getImageConfig(ctx, image) {
   var ret =
-    _.extend(
+    _.merge(
       {},
       ctx.config,
       readConfig(ctx.root + "/" + image, "images"));
@@ -194,17 +219,38 @@ function extractFixedParamValues(opts,topDir) {
   }
 }
 
+// The param-ignore-map contains the information which prio parameter value combination triggers
+// to ignore a certain parameter for building an image
+function createParamIgnoreMap(config) {
+  var ret = {};
+  forEachImageFishPepperConfig(config,function(type,paramValue,fpConfig) {
+    if (fpConfig['ignore-for']) {
+      ret[type] = ret[type] || {};
+      ret[type][paramValue] = fpConfig['ignore-for'].slice(0);
+    }
+  });
+  return Object.keys(ret).length > 0 ? ret : undefined;
+}
+
 function removeExperimentalConfigs(config) {
   var ret = _.extend({},config);
+  forEachImageFishPepperConfig(config,function(type,paramValue,fpConfig) {
+    if (fpConfig.experimental) {
+        delete ret[type][paramValue];
+    }
+  });
+  return ret;
+}
+
+function forEachImageFishPepperConfig(config,callback) {
   _.keys(config).forEach(function(type) {
-    _.keys(config[type]).forEach(function(key) {
-      var typeConfig = config[type][key];
-      if (typeConfig['fish-pepper'] && typeConfig['fish-pepper'].experimental) {
-        delete ret[type][key];
+    _.keys(config[type]).forEach(function(paramValue) {
+      var typeConfig = config[type][paramValue];
+      if (typeConfig['fish-pepper']) {
+        callback(type,paramValue,typeConfig['fish-pepper']);
       }
     });
   });
-  return ret;
 }
 
 function setupContext() {
@@ -331,7 +377,6 @@ function createHelp(ctx) {
       "\n" +
       "Images:\n\n";
     images.forEach(function (image) {
-      var config = image.config;
       var indent = "                                                   ".substring(0,image.dir.length + 5);
       var prefix = "   " + image.dir + ": ";
       util.foreachParamValue(extractParams(image),function(values) {

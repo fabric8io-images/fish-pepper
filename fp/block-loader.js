@@ -1,5 +1,5 @@
 var fs = require('fs');
-var _ = require('underscore');
+var _ = require('lodash');
 var yaml = require('js-yaml');
 var gitLoader = require('./block-loader/nodegit');
 

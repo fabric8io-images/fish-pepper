@@ -1,8 +1,9 @@
 var fs = require('fs');
 var mkdirp = require('mkdirp');
 
-exports.foreachParamValue = function(params, callback) {
+exports.foreachParamValue = function(params, callback, ignoreMap) {
   // Function for doing a fan-out on param values, called recursively
+  // ignoreMap: Map (param-type -> param-value -> list of value combinations to ignore for this param-value)
   var collect = function (types, values) {
     if (types.length === 0) {
       callback(values);
@@ -11,6 +12,10 @@ exports.foreachParamValue = function(params, callback) {
       var paramValues = Object.keys(params.config[type]).sort();
       paramValues.forEach(function (paramValue) {
         if (paramValue === "default") {
+          return;
+        } else if (ignoreMap && ignoreMap[type] && ignoreMap[type][paramValue] &&
+                   ignoreForParams(ignoreMap[type][paramValue], values)) {
+          // Ignore the given paramValue for the combination of previous given params
           return;
         }
         var valuesClone = values.slice(0);
@@ -22,6 +27,18 @@ exports.foreachParamValue = function(params, callback) {
 
   collect(params.types.slice(0), []);
 };
+
+function ignoreForParams(ignorePatterns, values) {
+  var ret = true;
+  ignorePatterns.forEach(function(parts) {
+    for (var i = 0; i < parts.length && i < values.length; i++) {
+      if (parts[i] != values[i] && parts[i] != "*") {
+        ret = false;
+      }
+    }
+  });
+  return ret;
+}
 
 exports.ensureDir = function(dir) {
   if (!fs.existsSync(dir)) {
