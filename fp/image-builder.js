@@ -21,12 +21,12 @@ function doBuildImages(root, docker, imageNames, opts) {
       if (!error || error.statusCode == 404) {
         var tar = child.spawn(tarCmd, ['-c', '.'], {cwd: imageName.getPath(root)});
         docker.buildImage(
-          tar.stdout, {"t": fullName, "forcerm": true, "q": true, "nocache": (opts && opts.nocache) ? "true" : "false"},
+          tar.stdout, {"t": fullName, "forcerm": false, "q": true, "nocache": (opts && opts.nocache) ? "true" : "false"},
           function (error, stream) {
             if (error) {
               throw error;
             }
-            stream.pipe(getResponseStream(opts && opts.debug));
+            stream.pipe(getResponseStream(docker, opts && opts.debug));
             stream.on('end', function () {
               imageName.getTags().forEach(function (tag) {
                 docker.getImage(fullName).tag(
@@ -58,9 +58,10 @@ function doBuildImages(root, docker, imageNames, opts) {
   }
 }
 
-function getResponseStream(debug) {
+function getResponseStream(docker,debug) {
   var buildResponseStream = new stream.Writable();
   var rest = "";
+  var lastContainerId;
   buildResponseStream._write = function (chunk, encoding, done) {
     var answer = chunk.toString();
 
@@ -73,10 +74,17 @@ function getResponseStream(debug) {
 
       if (resp.stream) {
         process.stdout.write("    " + resp.stream.gray);
+        var matcher = resp.stream.match(/\s([^\s]{12})\n?$/);
+        if (matcher) {
+          lastContainerId = matcher[1];
+        }
       }
       if (resp.errorDetail) {
         process.stderr.write("++++++++ ERROR +++++++++++\n".red);
         process.stderr.write(resp.errorDetail.message.red);
+        if (lastContainerId) {
+          printLogs(docker, lastContainerId);
+        }
       }
       rest = "";
     } catch (e) {
@@ -85,4 +93,20 @@ function getResponseStream(debug) {
     done();
   };
   return buildResponseStream;
+}
+
+function printLogs(docker,id) {
+  var container = docker.getContainer(id);
+  var logs_opts = {
+    stdout: true,
+    stderr: true,
+    timestamps: false
+  };
+
+  container.logs(logs_opts, function(err,stream) {
+    if (stream) {
+      container.modem.demuxStream(stream,process.stdout, process.stderr);
+    }
+  });
+
 }
