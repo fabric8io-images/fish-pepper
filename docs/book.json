@@ -1,0 +1,39 @@
+{
+  "title": "fish-pepper Documentation",
+  "description": "fish-pepper Reference Documentation",
+  "extension": "pdf",
+  "github": "fabric8io/fish-pepper",
+  "githubHost": "https://github.com/",
+  "gitbook": ">=2.0.0",
+
+  "links": {
+    "home": "http://fish-pepper.org/",
+    "about": "http://fish-pepper.org/index.html",
+    "issues": "https://github.com/fabric8io/fish-pepper/issues",
+    "contribute": "http://fabric8.io/contributing/index.html",
+
+    "sharing": {
+      "twitter": "https://twitter.com/fabric8io"
+    }
+  },
+
+    "plugins": ["edit-link", "anchors"],
+    "pluginsConfig": {
+        "edit-link": {
+            "base": "https://github.com/fabric8io/fish-pepper/edit/master/docs",
+            "label": "Edit This Page"
+        }
+    },
+    
+  "pdf": {
+    "toc": true,
+    "fontSize": 12,
+    "paperSize": "a4",
+    "margin": {
+      "right": 62,
+      "left": 62,
+      "top": 36,
+      "bottom": 36
+    }
+  }
+}
