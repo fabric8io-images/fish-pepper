@@ -24,7 +24,7 @@
     "dockerode": "*",
     "js-yaml": "*",
     "mkdirp": "*",
-    "nodegit": "*",
+    "nodegit": "0.4.1",
     "fibers": "*"
   }
 }
