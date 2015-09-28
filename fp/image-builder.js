@@ -3,8 +3,8 @@ var tarCmd = "tar";
 var child = require('child_process');
 var stream = require('stream');
 
-exports.build = function(root, docker, params, image, opts) {
-  doBuildImages(root, docker, imageNames.createImageNames(image, params),opts);
+exports.build = function(root, docker, types, allParamValues, image, opts) {
+  doBuildImages(root, docker, imageNames.createImageNames(image, types, allParamValues),opts);
 };
 
 function doBuildImages(root, docker, imageNames, opts) {

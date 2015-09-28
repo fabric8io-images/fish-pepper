@@ -1,9 +1,9 @@
 var util = require("./util");
 
-exports.createImageNames = function(image,params) {
+exports.createImageNames = function(image,paramTypes, allParamValues) {
   var imageNames = [];
-  util.foreachParamValue(params,function(values) {
-      imageNames.push(createImageName(image, params.types, values));
+  allParamValues.forEach(function(paramValues) {
+    imageNames.push(createImageName(image,paramTypes,paramValues));
   });
   return imageNames;
 };
@@ -71,7 +71,6 @@ function createImageName(image, types, paramValues) {
   }
 
   function forEachParamValueConfig(callback) {
-
     for (var i = 0; i < types.length; i++) {
       var c = image.config.config[types[i]][paramValues[i]];
       callback(c);

@@ -63,7 +63,7 @@ function createDockerFileDirs(ctx, images) {
     var blocks = blockLoader.loadLocal(ctx.root + "/" + image.dir + "/blocks");
     var params = extractParams(image, ctx);
 
-    templateEngine.fillTemplates(ctx, image, params, _.extend(blocks,ctx.blocks), createParamIgnoreMap(image.config.config));
+    templateEngine.fillTemplates(ctx, image, params, _.extend(blocks,ctx.blocks), createParamIgnoreMap(image));
   });
 }
 
@@ -76,7 +76,11 @@ function buildImages(ctx, images) {
   images.forEach(function(image) {
     console.log("  " + image.dir.magenta);
     var params = extractParams(image, ctx);
-    imageBuilder.build(ctx.root, docker, params, image, { nocache: ctx.options.nocache, debug: DEBUG });
+    var valuesExpanded = [];
+    util.foreachParamValue(params,function(values) {
+      valuesExpanded.push(values);
+    },createParamIgnoreMap(image));
+    imageBuilder.build(ctx.root, docker, params.types, valuesExpanded, image, { nocache: ctx.options.nocache, debug: DEBUG });
   });
 }
 // ===================================================================================
@@ -221,7 +225,8 @@ function extractFixedParamValues(opts,topDir) {
 
 // The param-ignore-map contains the information which prio parameter value combination triggers
 // to ignore a certain parameter for building an image
-function createParamIgnoreMap(config) {
+function createParamIgnoreMap(image) {
+  var config = image.config.config;
   var ret = {};
   forEachImageFishPepperConfig(config,function(type,paramValue,fpConfig) {
     if (fpConfig['ignore-for']) {
