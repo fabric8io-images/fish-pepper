@@ -76,8 +76,7 @@ exports.load = function (root, def, blockReadFunc) {
     return repo.fetch("origin", getRemoteCallbacks())
       .then(function () {
         branch = branch || "master";
-        repo.mergeBranches(branch, "origin/" + branch);
-        return repo;
+        return repo.mergeBranches(branch, "origin/" + branch);
       })
       .then(function () {
         return repo;
