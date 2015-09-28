@@ -47,8 +47,9 @@ function doBuildImages(root, docker, imageNames, opts) {
                   }
                   doBuildImages(root, docker, imageNames, opts);
                 });
+              } else {
+                doBuildImages(root, docker, imageNames, opts);
               }
-              doBuildImages(root, docker, imageNames, opts);
             });
           });
       } else {
