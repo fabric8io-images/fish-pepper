@@ -17,14 +17,14 @@
     "fp"
   ],
   "dependencies": {
-    "dot": "*",
     "colors": "*",
-    "lodash": "*",
-    "node-getopt": "*",
     "dockerode": "*",
+    "dot": "*",
+    "fibers": "*",
     "js-yaml": "*",
+    "lodash": "*",
     "mkdirp": "*",
-    "nodegit": "0.4.1",
-    "fibers": "*"
+    "node-getopt": "*",
+    "nodegit": "*"
   }
 }
