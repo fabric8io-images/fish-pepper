@@ -8,7 +8,7 @@ exports.load = function (root, def, blockReadFunc) {
   // We need a future here because nodegit is inherently async working with promises,
   // whereas the rest of the code is sync.
   // Ideally, the rest of the code would be reworked to work with promises, too
-  // See also https://github.com/fabric8io/fish-pepper/issues/4 
+  // See also https://github.com/fabric8io/fish-pepper/issues/4
   var future = new Future();
   readBlocksFromGit(root, def).then(function (blocks) {
     future.return(blocks)
@@ -38,7 +38,7 @@ exports.load = function (root, def, blockReadFunc) {
       // Clone
       console.log("  Cloning " + def.url.blue + branchOrTagLabel(def));
       gitCloneOrPull =
-        Git.Clone(def.url, path, {remoteCallbacks: getRemoteCallbacks()});
+        Git.Clone(def.url, path, {fetchOpts: {callbacks: getRemoteCallbacks()}});
     }
 
     return gitCloneOrPull
@@ -73,7 +73,7 @@ exports.load = function (root, def, blockReadFunc) {
 
   function pull(repo, branch) {
     // Optimization: Do a pull only if no tag is given or the tag given differs from the currently checked out tag
-    return repo.fetch("origin", getRemoteCallbacks())
+    return repo.fetch("origin", {callbacks: getRemoteCallbacks()})
       .then(function () {
         branch = branch || "master";
         return repo.mergeBranches(branch, "origin/" + branch);
