@@ -1,8 +1,13 @@
-FROM alpine:3.2
+FROM debian
 
-ENV FISH_PEPPER_VERSION 0.0.14
+ENV FISH_PEPPER_VERSION 0.5.5
 
-RUN apk add --update nodejs \
+ADD setup_node.sh /tmp
+RUN bash /tmp/setup_node.sh \
+ && rm /tmp/setup_node.sh \
+ && apt-get update \
+ && apt-get -y install nodejs make git  \
+ && npm config set unsafe-perm true \
  && npm -g install fish-pepper@${FISH_PEPPER_VERSION} \
  && mkdir /fp
 
