@@ -1,6 +1,6 @@
 # fish-pepper - Spicing up the ocean
 
-This is a small Docker image ( ~ 30MB) for [fish-pepper](https://github.com/rhuss/fish-pepper) a
+This is a Docker image for [fish-pepper](https://github.com/rhuss/fish-pepper) a
 build system for docker images.
 
 This image can be use if [node.js](http://nodejs.org) is not installed locally.

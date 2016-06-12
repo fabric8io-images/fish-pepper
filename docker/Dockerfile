@@ -9,7 +9,8 @@ RUN bash /tmp/setup_node.sh \
  && apt-get -y install nodejs make git  \
  && npm config set unsafe-perm true \
  && npm -g install fish-pepper@${FISH_PEPPER_VERSION} \
- && mkdir /fp
+ && mkdir /fp \
+ && rm -rf /var/lib/apt/lists/*
 
 VOLUME /fp
 WORKDIR /fp
