@@ -132,20 +132,20 @@ function extractImages(root) {
   var ret = [];
 
   function _findConfigs(dir) {
-    var slash = dir.length > 0 ? "/" : "";
-    fs.readdirSync(root + slash + dir).forEach(function(f) {
-      var p = root + slash + dir + "/" + f;
-      if (fs.statSync(p).isDirectory()) {
-        if (existsConfig(p,"images")) {
-          ret.push(dir + slash + f);
-        } else {
-          _findConfigs(dir + slash + f);
+    if (existsConfig(dir,"images")) {
+      ret.push(dir.replace(new RegExp("^" + root + "/?"),""));
+    } else {
+      fs.readdirSync(dir).forEach(function (f) {
+        var full = dir + "/" + f;
+        if (fs.statSync(full).isDirectory()) {
+          _findConfigs(full);
         }
-      }
-    });
-    return ret;
+      });
+    }
   }
-  return _findConfigs("");
+
+  _findConfigs(root);
+  return ret;
 }
 
 function getImageConfig(ctx, image) {
