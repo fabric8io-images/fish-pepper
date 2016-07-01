@@ -92,7 +92,7 @@ function getImages(ctx) {
     return undefined;
   }
   var allImageNames = extractImages(ctx.root);
-
+  console.log(allImageNames);
   if (ctx.options.image) {
     imageNames = _.filter(allImageNames, function (image) {
       return _.contains(ctx.options.image, image);
@@ -106,7 +106,7 @@ function getImages(ctx) {
     var imageMatch =
       currentDir.match("^" + ctx.root + "/(.+)(/images/?.*)") ||
       currentDir.match("^" + ctx.root + "/(.+)");
-    if (imageMatch) {
+    if (imageMatch && !imageMatch[1].startsWith("images")) {
       // Include multiple images if we are 'in between' the root dir
       // and the image directory
       imageNames = _.filter(allImageNames,function(name) {
@@ -215,7 +215,7 @@ function extractFixedParamValues(opts,topDir) {
   }
   // Implicit determined by current working dir
   var currentDir = process.cwd();
-  var paramRest = currentDir.match(new RegExp("^" + topDir + "/images/(.*?)/*$"));
+  var paramRest = currentDir.match(new RegExp("^" + topDir + "/?images/([^/]+)/?.*$"));
   if (paramRest) {
     return paramRest[1].split(/\//);
   } else {
