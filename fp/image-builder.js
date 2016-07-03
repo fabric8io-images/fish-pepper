@@ -71,23 +71,26 @@ function getResponseStream(docker,debug) {
     }
 
     try {
-      var resp = JSON.parse(rest + answer);
+      (rest + answer).split(/\n/).forEach(
+        function(line) {
+          var resp = JSON.parse(line);
 
-      if (resp.stream) {
-        process.stdout.write("    " + resp.stream.gray);
-        var matcher = resp.stream.match(/\s([^\s]{12})\n?$/);
-        if (matcher) {
-          lastContainerId = matcher[1];
-        }
-      }
-      if (resp.errorDetail) {
-        process.stderr.write("++++++++ ERROR +++++++++++\n".red);
-        process.stderr.write(resp.errorDetail.message.red);
-        if (lastContainerId) {
-          printLogs(docker, lastContainerId);
-        }
-      }
-      rest = "";
+          if (resp.stream) {
+            process.stdout.write("    " + resp.stream.gray);
+            var matcher = resp.stream.match(/\s([^\s]{12})\n?$/);
+            if (matcher) {
+              lastContainerId = matcher[1];
+            }
+          }
+          if (resp.errorDetail) {
+            process.stderr.write("++++++++ ERROR +++++++++++\n".red);
+            process.stderr.write(resp.errorDetail.message.red);
+            if (lastContainerId) {
+              printLogs(docker, lastContainerId);
+            }
+          }
+          rest = "";
+        });
     } catch (e) {
       rest += answer;
     }

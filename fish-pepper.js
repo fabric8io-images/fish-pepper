@@ -92,7 +92,6 @@ function getImages(ctx) {
     return undefined;
   }
   var allImageNames = extractImages(ctx.root);
-  console.log(allImageNames);
   if (ctx.options.image) {
     imageNames = _.filter(allImageNames, function (image) {
       return _.contains(ctx.options.image, image);
