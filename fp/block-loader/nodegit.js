@@ -91,24 +91,18 @@ exports.load = function (root, def, blockReadFunc) {
   }
 
   function checkOutTag(repo, tag) {
-    return Git.Tag.list(repo)
-      .then(function (repoTags) {
-        return getCommitForTag(repo, tag, repoTags);
-      })
-      .then(function (tagRef) {
-        return checkOutCommit(repo, tagRef);
-      });
-  }
-
-  function getCommitForTag(repo, tag, repoTags) {
-    for (var i = 0; i < repoTags.length; i++) {
-      var repoTag = repoTags[i];
-      if (tag === repoTag) {
-        return repo.getReferenceCommit(repoTag);
-      }
-    }
-    ;
-    throw new Error("No tag " + tag + " found. Known tags: " + repoTags);
+    return repo.getReferences(Git.Reference.TYPE.OID)
+      .then(function (refs) {
+         refs.forEach(function(ref) {
+           if (ref.isTag() && ref.name() === tag) { 
+              return 
+                Checkout.tree(repo, tag.targetId(), { checkoutStrategy: Checkout.STRATEGY.SAFE_CREATE})
+                   .then(function() {
+                      repo.setHeadDetached(tag.targetId(), repo.defaultSignature, "Checkout: HEAD " + tag.targetId());
+                   });
+           }
+         });
+     })
   }
 
   function checkOutCommit(repo, commit) {
