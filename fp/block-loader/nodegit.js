@@ -47,7 +47,10 @@ exports.load = function (root, def, blockReadFunc) {
       })
       .then(function () {
         return blockReadFunc(getBlocksPath(path, def));
-      });
+      })
+      .catch(function (error) {
+        throw new Error(error);
+      })
   }
 
   function getBlocksPath(path, def) {
@@ -90,19 +93,22 @@ exports.load = function (root, def, blockReadFunc) {
       });
   }
 
-  function checkOutTag(repo, tag) {
-    return repo.getReferences(Git.Reference.TYPE.OID)
-      .then(function (refs) {
-         refs.forEach(function(ref) {
-           if (ref.isTag() && ref.name() === tag) { 
-              return 
-                Checkout.tree(repo, tag.targetId(), { checkoutStrategy: Checkout.STRATEGY.SAFE_CREATE})
-                   .then(function() {
-                      repo.setHeadDetached(tag.targetId(), repo.defaultSignature, "Checkout: HEAD " + tag.targetId());
-                   });
-           }
-         });
-     })
+  function checkOutTag(repo, tag){
+    return Git.Reference
+      .dwim(repo, "refs/tags/" + tag)
+      .then(function (ref) {
+          return ref.peel(Git.Object.TYPE.COMMIT);
+      })
+      .then(function (ref) {
+          return repo.getCommit(ref);
+      })
+      .then(function (commit) {
+          return Git.Checkout
+            .tree(repo, commit, {checkoutStrategy: Git.Checkout.STRATEGY.SAFE})
+            .then(function () {
+                return repo.setHeadDetached(commit, repo.defaultSignature, "Checkout: HEAD " + commit.id());
+            })
+      });
   }
 
   function checkOutCommit(repo, commit) {
