@@ -45,6 +45,8 @@ cd fish-pepper
 npm -g install
 ```
 
+If you are hitting `Error: libcurl-gnutls.so.4: cannot open shared object file: No such file or directory`, [see issue #13](https://github.com/fabric8io-images/fish-pepper/issues/13).
+
 ### Synopsis
 
 ````
