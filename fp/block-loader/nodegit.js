@@ -106,14 +106,16 @@ exports.load = function (root, def, blockReadFunc) {
           return Git.Checkout
             .tree(repo, commit, {checkoutStrategy: Git.Checkout.STRATEGY.SAFE})
             .then(function () {
-                return repo.setHeadDetached(commit, repo.defaultSignature, "Checkout: HEAD " + commit.id());
+                console.log("  Checkout: HEAD " + commit.id());
+                return repo.setHeadDetached(commit);
             })
       });
   }
 
   function checkOutCommit(repo, commit) {
     var signature = Git.Signature.default(repo);
-    repo.setHeadDetached(commit.id(), signature, "Checkout: HEAD " + commit.id());
+    console.log("  Checkout: HEAD " + commit.id());
+    repo.setHeadDetached(commit.id());
     return Git.Checkout.head(repo, {
       checkoutStrategy: Git.Checkout.STRATEGY.FORCE
     });
@@ -121,7 +123,8 @@ exports.load = function (root, def, blockReadFunc) {
 
   function checkOutRef(repo, branchRef) {
     var signature = Git.Signature.default(repo);
-    repo.setHead(branchRef.name(), signature, "Set head to " + branchRef.target())
+    console.log("  Set head to " + branchRef);
+    repo.setHead(branchRef.name())
       .then(function () {
         return Git.Checkout.head(repo, {
           checkoutStrategy: Git.Checkout.STRATEGY.FORCE
