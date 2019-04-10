@@ -1,12 +1,9 @@
-FROM debian
+FROM node:lts
 
-ENV FISH_PEPPER_VERSION 0.5.5
+ENV FISH_PEPPER_VERSION 0.5.6
 
-ADD setup_node.sh /tmp
-RUN bash /tmp/setup_node.sh \
- && rm /tmp/setup_node.sh \
- && apt-get update \
- && apt-get -y install nodejs make git  \
+RUN apt-get update \
+ && apt-get -y install make git libssl-dev gcc \
  && npm config set unsafe-perm true \
  && npm -g install fish-pepper@${FISH_PEPPER_VERSION} \
  && mkdir /fp \
