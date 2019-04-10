@@ -1,6 +1,6 @@
 FROM node:lts
 
-ENV FISH_PEPPER_VERSION 0.5.6
+ENV FISH_PEPPER_VERSION 0.6.0
 
 RUN apt-get update \
  && apt-get -y install make git libssl-dev gcc \
