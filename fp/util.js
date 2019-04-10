@@ -29,13 +29,16 @@ exports.foreachParamValue = function(params, callback, ignoreMap) {
 };
 
 function ignoreForParams(ignorePatterns, values) {
-  var ret = true;
+  var ret = false;
   ignorePatterns.forEach(function(parts) {
+    var match = true;
     for (var i = 0; i < parts.length && i < values.length; i++) {
       if (parts[i] != values[i] && parts[i] != "*") {
-        ret = false;
+        match = false;
+        break;
       }
     }
+    ret |= match;
   });
   return ret;
 }
