@@ -153,12 +153,31 @@ exports.fillTemplates = function (ctx, image, params, blocks, paramIgnoreMap) {
 
       // Copy over files attached to block if changed
       if (!opts["fp-no-files"]) {
-        copyBlockFiles(key, templateContext, paramValues);
+        if (opts["fp-bin-files"]) {
+          copyBlockBinaryFiles(key, paramValues);
+        } else {
+          copyBlockFiles(key, templateContext, paramValues);
+        }
       }
       return blocks[key]["text"] && blocks[key]["text"][subSnippet] ?
         (dot.template(blocks[key]["text"][subSnippet]))(templateContext) :
         undefined;
     }
+  }
+
+  function copyBlockBinaryFiles(key, paramValues) {
+    var files = blocks[key].files || [];
+    files.forEach(function (file) {
+      var base = path.parse(file).base;
+      var targetFile = getPath(paramValues, base);
+      var existingFile = fs.existsSync(targetFile);
+      var newSize = fs.statSync(file).size;
+      var oldSize = existingFile ? fs.statSync(targetFile).size : 0;
+      if (! existingFile || newSize != oldSize) {
+        fs.copyFileSync(file, targetFile);
+        logFile(file, !existingFile ? "NEW".yellow : "CHANGED".green, key);
+      }
+    });
   }
 
   function copyBlockFiles(key, templateContext, paramValues) {

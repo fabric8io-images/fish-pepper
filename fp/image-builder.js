@@ -2,6 +2,7 @@ var imageNames = require('./image-names');
 var tarCmd = "tar";
 var child = require('child_process');
 var stream = require('stream');
+const fs = require('fs');
 
 exports.build = function(root, docker, types, allParamValues, image, opts) {
   doBuildImages(root, docker, imageNames.createImageNames(image, types, allParamValues),opts);
@@ -9,10 +10,11 @@ exports.build = function(root, docker, types, allParamValues, image, opts) {
 
 function doBuildImages(root, docker, imageNames, opts) {
   if (imageNames && imageNames.length > 0) {
+    
     var imageName = imageNames.shift();
     console.log("    " + imageName.getLabel().green + " --> " + imageName.getImageNameWithVersion().cyan);
+    
     var fullName = imageName.getImageNameWithVersion();
-
     var image = docker.getImage(fullName);
     image.inspect(function (error, data) {
       if (!error) {
@@ -56,6 +58,9 @@ function doBuildImages(root, docker, imageNames, opts) {
         throw error;
       }
     });
+    let writeStream = fs.createWriteStream('push-images.log', {flags: 'a'});
+    writeStream.write('docker push ' + imageName.getImageNameWithVersion() + '\n');
+    writeStream.end();
   }
 }
 

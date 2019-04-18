@@ -13,6 +13,7 @@ exports.createImageNames = function(image,paramTypes, allParamValues) {
 function createImageName(image, types, paramValues) {
   return {
       getPath: function (root) {
+        
         return root + "/" + image.dir + "/images/" + paramValues.join("/");
       },
 
@@ -42,8 +43,26 @@ function createImageName(image, types, paramValues) {
 
   function getImageName()
   {
+    var dockerOrg = getDockerOrg();
+    var name = image.name;
+    if (dockerOrg && name.includes("/")) {
+      name = dockerOrg + name.substring(name.indexOf("/"));
+    }
     var registry = image.config.fpConfig('registry') ? image.config.fpConfig('registry') + "/" : "";
-    return registry + image.name + "-" + paramValues.join("-");
+    return registry + name + "-" + paramValues.join("-");
+  }
+
+  function getDockerOrg()
+  {
+    var dockerOrg = undefined;
+    for (type in types) {
+      var param = paramValues[type];
+      var org = image.config.config[types[type]][param].dockerOrg;
+      if (org) {
+        dockerOrg = org;
+      }
+    }
+    return dockerOrg;
   }
 
   function getVersion() {

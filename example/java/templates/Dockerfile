@@ -1,4 +1,5 @@
 FROM {{= fp.config.version.java + fp.config.type.extension }}
+{{= fp.block("qemu-lib-" + fp.param.arch,'commands',{'fp-bin-files' : true}) || ''}}
 
 MAINTAINER {{= fp.maintainer }}
 
