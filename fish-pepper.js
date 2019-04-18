@@ -13,6 +13,7 @@ var templateEngine = require('./fp/template-engine');
 var dockerBackend = require('./fp/docker-backend');
 var blockLoader = require('./fp/block-loader');
 var imageBuilder = require('./fp/image-builder');
+var manifestBuilder = require('./fp/manifest-builder');
 
 var util = require('./fp/util');
 
@@ -50,6 +51,11 @@ function processImages(ctx, images) {
   if (ctx.commands.build) {
     buildImages(ctx, images);
   }
+
+  // If desired create Docker manifests
+  if (ctx.commands.manifest) {
+    buildManifests(ctx, images);
+  }
 }
 
 // == COMMMANDS ===========================================================================
@@ -73,6 +79,12 @@ function buildImages(ctx, images) {
 
   var docker = dockerBackend.create(ctx.options);
 
+  fs.open('push-images.log', 'w', function(err, fd) { 
+    fs.close(fd, function() {
+      console.log('truncated \'push-images.log\' successfully');
+    });
+  });
+  
   images.forEach(function(image) {
     console.log("  " + image.dir.magenta);
     var params = extractParams(image, ctx);
@@ -82,7 +94,33 @@ function buildImages(ctx, images) {
     },createParamIgnoreMap(image));
     imageBuilder.build(ctx.root, docker, params.types, valuesExpanded, image, { nocache: ctx.options.nocache, debug: DEBUG });
   });
+  
 }
+
+// "manifest"
+function buildManifests(ctx, images) {
+  console.log("\n* " + "Building Manifests".cyan);
+
+  var docker = dockerBackend.create(ctx.options);
+
+  fs.open('manifest.log', 'w', function(err, fd) { 
+    fs.close(fd, function() {
+      console.log('\'manifest.log\' written');
+    });
+  });
+  
+  images.forEach(function(image) {
+    console.log("  " + image.dir.magenta);
+    var params = extractParams(image, ctx, 'arch');
+    var valuesExpanded = [];
+    util.foreachParamValue(params,function(values) {
+      valuesExpanded.push(values);
+    },createParamIgnoreMap(image));
+    manifestBuilder.build(ctx.root, docker, params.types, valuesExpanded, image, { nocache: ctx.options.nocache, debug: DEBUG });
+  });
+  
+}
+
 // ===================================================================================
 
 function getImages(ctx) {
@@ -161,7 +199,7 @@ function getImageConfig(ctx, image) {
 }
 
 // Return all params in the right order and the individual configuration per param
-function extractParams(image, ctx) {
+function extractParams(image, ctx, reduceValue) {
   var config = image.config;
   var types = config.fpConfig('params').slice(0);
   var paramValues = undefined;
@@ -170,6 +208,10 @@ function extractParams(image, ctx) {
     var opts = ctx.options ? ctx.options : {all: true};
     paramValues = extractFixedParamValues(opts, ctx.root + "/" + image.dir);
     paramConfigs = opts.experimental || paramValues ? config.config : removeExperimentalConfigs(config.config);
+  }
+  
+  if (reduceValue) {
+    types.pop();
   }
 
   // Filter out configuration which are not selected by the user

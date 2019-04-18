@@ -1,5 +1,6 @@
 node_modules
 .idea
+.vscode
 *.iml
 openjdk-6
 openjdk-7

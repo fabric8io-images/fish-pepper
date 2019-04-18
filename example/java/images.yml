@@ -4,6 +4,7 @@ fish-pepper:
   params:
     - "version"
     - "type"
+    - "arch"
   # Name stem to use for the images to create with -b (param value will be appended with -)
   name: "jolokia/fish-pepper-java"
   # Internal build number. Should be increased for each change
@@ -41,3 +42,8 @@ config:
       extension: "-jre"
     jdk:
       extension: "-jdk"
+  arch:
+    amd64:
+      dockerOrg: "p31amd64"
+    arm64v8:
+      dockerOrg: "p31arm64v8"

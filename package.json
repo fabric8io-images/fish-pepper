@@ -20,6 +20,7 @@
     "colors": "*",
     "dockerode": "*",
     "dot": "*",
+    "eslint": "^5.16.0",
     "fibers": "*",
     "js-yaml": "^3.13.1",
     "lodash": "*",
