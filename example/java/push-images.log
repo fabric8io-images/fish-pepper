@@ -1,0 +1,8 @@
+docker push docker.io/p31amd64/fish-pepper-java-openjdk7-jdk-amd64:1.7-2
+docker push docker.io/p31arm64v8/fish-pepper-java-openjdk7-jdk-arm64v8:1.7-2
+docker push docker.io/p31amd64/fish-pepper-java-openjdk7-jre-amd64:1.7-2
+docker push docker.io/p31arm64v8/fish-pepper-java-openjdk7-jre-arm64v8:1.7-2
+docker push docker.io/p31amd64/fish-pepper-java-openjdk8-jdk-amd64:1.8-2
+docker push docker.io/p31arm64v8/fish-pepper-java-openjdk8-jdk-arm64v8:1.8-2
+docker push docker.io/p31amd64/fish-pepper-java-openjdk8-jre-amd64:1.8-2
+docker push docker.io/p31arm64v8/fish-pepper-java-openjdk8-jre-arm64v8:1.8-2

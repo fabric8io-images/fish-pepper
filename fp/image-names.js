@@ -36,6 +36,14 @@ function createImageName(image, types, paramValues) {
           }
         });
         return ret;
+      },
+
+      getShortName: function () {
+        var shortName = getImageName();
+        if (shortName.indexOf("/") > 0) {
+          shortName = shortName.substring(shortName.indexOf("/") + 1);
+        }
+        return shortName;
       }
     };
 
