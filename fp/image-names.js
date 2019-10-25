@@ -42,8 +42,10 @@ function createImageName(image, types, paramValues) {
 
   function getImageName()
   {
+    var params = normalizedParams();
+
     var registry = image.config.fpConfig('registry') ? image.config.fpConfig('registry') + "/" : "";
-    return registry + image.name + "-" + paramValues.join("-");
+    return registry + image.name + "-" + params.join("-"); 
   }
 
   function getVersion() {
@@ -64,6 +66,18 @@ function createImageName(image, types, paramValues) {
     } else {
       return "latest";
     }
+  }
+
+  function normalizedParams(key) {
+    var params = [];
+    var index = 0;
+    forEachParamValueConfig(function(config) {
+      var name = fpConfig(config, 'name');
+
+      params.push(name || paramValues[index]);
+      index++;
+    });
+    return params;
   }
 
   function fpConfig(config, key) {
