@@ -5,7 +5,7 @@ various ways. The *base name* is taken from a `fish-pepper.name` when
 given in `images.yml`. If not the base is calculated as
 `registry/userRepo/image`, where `registry` and `userRepo` can be
 globally defined in `fish-pepper.yml` and `image` is the directory name
-where `images.yml` is stored, relative to the root directory (which holds `fish-pepper.yml`). 
+where `images.yml` is stored, relative to the root directory (which holds `fish-pepper.yml`).
 `registry` and `userRepo` can be both left out.
 
 From this base name the full name is calculated by appending the
@@ -13,6 +13,10 @@ concrete parameter values with dashs (`-`). For example, when building
 an image for the param values `version=openjdk7` and `type=jre` then
 image name will be `java-openjdk7-jre`, assuming that `java` is the
 *base name* as described above.
+
+The image's name is also calculated: Each param parameter value can have a
+`name` parameter in its `fish-pepper` section. When this parameter is defined then
+the one autocalculated will be overwrite.
 
 The image's tag is also calculated: Each param parameter value can have a
 `version` parameter in its `fish-pepper` section. For all parameter
@@ -28,7 +32,7 @@ Sounds complicated ? Hopefully an example sheds some light on
 this. Consider the following `images.yml` for a `java` image family:
 
 ```yaml
-  # Two dimensional build: 1st dimension == version (7 or 8), 
+  # Two dimensional build: 1st dimension == version (7 or 8),
   # 2nd dimension == type (jdk or jre)
   fish-pepper:
     params:
@@ -49,6 +53,8 @@ this. Consider the following `images.yml` for a `java` image family:
       openjdk7:
         # The version is used in the tag
         fish-pepper:
+          # The name, if defined, overwrite the one that corresponds to directories tree of images
+          name: "jdk7"
           version: "1.7"
           # Additional tags to add
           tags:
@@ -65,7 +71,7 @@ this. Consider the following `images.yml` for a `java` image family:
       jre:
         # ....
       jdk:
-        # .... 
+        # ....
 ```
 
 When using `fish-pepper build` with this image config you will get the
@@ -78,11 +84,10 @@ following images (user and registry omitted):
 
 and the additional tagged images:
 
-* java-openjdk7-jdk:7u79 
+* java-openjdk7-jdk:7u79
 * java-openjdk7-jre:7u79
 * java-openjdk8-jdk:8u45, java-openjdk8-jdk:latest
 * java-openjdk8-jre:8u45, java-openjdk8-jre:latest
 
 It is recommended to use and count up `fish-pepper.buildVersion` for
 any change in you build files.
-
