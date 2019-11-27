@@ -94,13 +94,18 @@ exports.fillTemplates = function (ctx, image, params, blocks, paramIgnoreMap) {
     var file = path + "/" + templateFile;
     var context = getTemplateContext(paramValues);
     var newContent = template(context).trim() + "\n";
+
+    var permission = getPermission(ctx.root + '/templates/' + templateFile); 
     if (!newContent.length) {
       logFile(templateFile, "SKIPPED".grey);
     } else {
-      var exists = fs.existsSync(file);
+      var exists = fs.existsSync(file);	    
       var oldContent = exists ? fs.readFileSync(file, "utf8") : undefined;
+	    
+
       if (!oldContent || newContent.trim() !== oldContent.trim()) {
         fs.writeFileSync(file, newContent, {"encoding": "utf8"});
+        setPermission(file, permission);
         logFile(templateFile, exists ? "CHANGED".green : "NEW".yellow);
       }
     }
@@ -155,6 +160,10 @@ exports.fillTemplates = function (ctx, image, params, blocks, paramIgnoreMap) {
       if (!opts["fp-no-files"]) {
         copyBlockFiles(key, templateContext, paramValues);
       }
+
+      if(opts["copy-files"]) {
+	      copyFiles(key, templateContext, paramValues);
+      }
       return blocks[key]["text"] && blocks[key]["text"][subSnippet] ?
         (dot.template(blocks[key]["text"][subSnippet]))(templateContext) :
         undefined;
@@ -169,9 +178,10 @@ exports.fillTemplates = function (ctx, image, params, blocks, paramIgnoreMap) {
       var newContent = (dot.template(toCopy))(templateContext);
       var targetFile = getPath(paramValues, base);
       var oldContent = fs.existsSync(targetFile) ? fs.readFileSync(targetFile) : undefined;
+   
       if (!oldContent || oldContent != newContent) {
         fs.writeFileSync(targetFile, newContent);
-        logFile(file, oldContent ? "NEW".yellow : "CHANGED".green, key);
+	      logFile(file, oldContent ? "NEW".yellow : "CHANGED".green, key);
       }
     });
   }
@@ -180,6 +190,38 @@ exports.fillTemplates = function (ctx, image, params, blocks, paramIgnoreMap) {
     console.log("       " + (prefix ? prefix + "." : "") +
                 file.replace(/.*\/([^\/]+)$/, "$1") + ": " + txt);
   }
-};
 
+  function getPermission(file){	
+    var pathToFile = file.replace(/\/\//g, '/');
+    var exist = fs.existsSync(pathToFile);
+    if(!exist) {
+       return;
+    }
+
+    var stats = fs.statSync(file);
+    return '0' + (stats.mode & parseInt('777', 8)).toString(8);
+  }
+
+  function setPermission(file, permission) {
+    try {
+     fs.chmodSync(file, permission);
+    }
+    catch(e) {}
+  }
+
+  function copyFiles(key, templateContext, paramValues) {
+    var files = blocks[key].files || []; 
+    files.forEach(function(file) {
+       var base = path.parse(file).base;
+       var targetFile = getPath(paramValues, base);
+
+       if(fs.existsSync(targetFile)) {
+	      fs.unlinkSync(targetFile);
+       }
+
+       fs.copyFileSync(file, targetFile);
+       logFile(file, "IS COPIED".yellow);
+    });
+  }
+};
 
