@@ -1,7 +1,7 @@
 {
   "name": "fish-pepper",
   "description": "Tool for creating a suite of Docker images out of templates",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "repository": "https://github.com/fabric8io/fish-pepper",
   "author": {
     "name": "Roland Huss",
@@ -25,7 +25,7 @@
     "lodash": "*",
     "mkdirp": "*",
     "node-getopt": "*",
-    "nodegit": "0.24.1",
+    "nodegit": "0.26.1",
     "nopt": "*",
     "npmlog": "~2.0.0",
     "request": "*",
