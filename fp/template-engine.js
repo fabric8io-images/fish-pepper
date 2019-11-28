@@ -99,13 +99,13 @@ exports.fillTemplates = function (ctx, image, params, blocks, paramIgnoreMap) {
     if (!newContent.length) {
       logFile(templateFile, "SKIPPED".grey);
     } else {
-      var exists = fs.existsSync(file);	    
+      var exists = fs.existsSync(file);
       var oldContent = exists ? fs.readFileSync(file, "utf8") : undefined;
 	    
 
       if (!oldContent || newContent.trim() !== oldContent.trim()) {
         fs.writeFileSync(file, newContent, {"encoding": "utf8"});
-        setPermission(file, permission);
+        fs.chmodSync(file, permission);
         logFile(templateFile, exists ? "CHANGED".green : "NEW".yellow);
       }
     }
@@ -181,7 +181,7 @@ exports.fillTemplates = function (ctx, image, params, blocks, paramIgnoreMap) {
    
       if (!oldContent || oldContent != newContent) {
         fs.writeFileSync(targetFile, newContent);
-	      logFile(file, oldContent ? "NEW".yellow : "CHANGED".green, key);
+        logFile(file, oldContent ? "NEW".yellow : "CHANGED".green, key);
       }
     });
   }
@@ -200,13 +200,6 @@ exports.fillTemplates = function (ctx, image, params, blocks, paramIgnoreMap) {
 
     var stats = fs.statSync(file);
     return '0' + (stats.mode & parseInt('777', 8)).toString(8);
-  }
-
-  function setPermission(file, permission) {
-    try {
-     fs.chmodSync(file, permission);
-    }
-    catch(e) {}
   }
 
   function copyFiles(key, templateContext, paramValues) {
